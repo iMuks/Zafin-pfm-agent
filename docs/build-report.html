@@ -13,6 +13,13 @@ html{scroll-behavior:smooth}
 body{font:15px/1.65 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:var(--ink);background:var(--bg)}
 code,.mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.88em}
 code{background:var(--brand-soft);color:var(--brand-deep);padding:1px 5px;border-radius:4px}
+pre{background:var(--nav);color:#dde4f4;padding:13px 16px;border-radius:9px;overflow-x:auto;
+font-size:12.5px;line-height:1.6;margin:10px 0;font-family:ui-monospace,Menlo,monospace}
+pre code{background:none;color:inherit;padding:0;font-size:inherit}
+pre .c{color:#8b9bbd}
+ol.steps{list-style:none;padding-left:0;margin:14px 0}
+ol.steps>li{margin:0 0 18px;padding-left:4px}
+ol.steps>li>strong{display:block;font-size:14px;margin-bottom:5px;color:var(--ink)}
 /* sidebar */
 .side{position:fixed;left:0;top:0;width:var(--sidebar);height:100vh;background:var(--nav);
 display:flex;flex-direction:column;overflow:hidden;z-index:10}
@@ -78,6 +85,7 @@ figcaption{font-size:12px;color:var(--ink3);margin-top:7px;text-align:center}
   <nav class="side-nav">
     <div class="grp">Report</div>
     <a href="#summary">1 · Executive summary</a>
+    <a href="#run">·&nbsp; Run it locally</a>
     <a href="#stories">2 · User stories &amp; coverage</a>
     <a href="#stack">3 · Tech stack</a>
     <a href="#backend">4 · Backend components</a>
@@ -101,7 +109,7 @@ figcaption{font-size:12px;color:var(--ink3);margin-top:7px;text-align:center}
   assignment.</p>
   <div class="metrics">
     <div class="metric"><b>66</b><span>modules</span></div>
-    <div class="metric"><b>159</b><span>tests</span></div>
+    <div class="metric"><b>162</b><span>tests</span></div>
     <div class="metric"><b>10</b><span>tools</span></div>
     <div class="metric"><b>11 / 12</b><span>user stories</span></div>
     <div class="metric"><b>300</b><span>transactions</span></div>
@@ -141,6 +149,76 @@ first sentence renders while the chart beneath it is still being generated.</p>
   <li><strong>It degrades rather than breaking.</strong> Malformed model output is
   repaired where possible, and dropped visibly where not.</li>
 </ul>
+</section>
+
+<section id="run">
+<h2>Run it locally</h2>
+<p>Everything needed is committed. Python 3.12 or newer and an Anthropic API key
+are the only prerequisites; the enriched dataset ships with the repository, so
+there is no build step and no pipeline to run before the app works.</p>
+
+<ol class="steps">
+<li><strong>1 · Get the code</strong>
+<pre><code>git clone https://github.com/iMuks/Zafin-pfm-agent.git
+cd Zafin-pfm-agent</code></pre></li>
+
+<li><strong>2 · Create a virtual environment and install</strong>
+<pre><code>python3 -m venv .venv
+source .venv/bin/activate         <span class="c"># Windows: .venv\Scripts\activate</span>
+pip install -r requirements.txt</code></pre></li>
+
+<li><strong>3 · Add your API key</strong>
+<pre><code>cp .env.example .env
+<span class="c"># then edit .env and set:</span>
+ANTHROPIC_API_KEY=sk-ant-...</code></pre>
+<p><code>.env</code> is gitignored and <code>.env.example</code> holds only a
+placeholder. Nothing else needs configuring — every other setting has a working
+default, and <code>/api/health</code> will tell you whether the key was found.</p></li>
+
+<li><strong>4 · Start the app</strong>
+<pre><code>uvicorn penny.presentation.http.app:app --port 8000</code></pre>
+<p>If port 8000 is taken, use <code>--port 8020</code> and substitute that port
+below.</p></li>
+
+<li><strong>5 · Open it</strong>
+<pre><code>http://127.0.0.1:8000</code></pre>
+<p>Penny opens the conversation herself with a live summary of the last complete
+month. If you see that, the model call, the tool call and the stream are all
+working.</p></li>
+
+<li><strong>6 · Confirm it is healthy</strong>
+<pre><code>curl -s http://127.0.0.1:8000/api/health</code></pre>
+<p>Returns <code>status: ok</code>, the resolved model id, the ten tool names and
+the dataset coverage the agent is reasoning over. The generated API docs are at
+<code>http://127.0.0.1:8000/docs</code>.</p></li>
+
+<li><strong>7 · Verify it without spending anything</strong>
+<pre><code>python -m unittest discover tests        <span class="c"># 162 tests, no key, no network</span>
+python scripts/preview_components.py     <span class="c"># component gallery on :8001</span></code></pre>
+<p>The gallery renders every component against stub data with the API key unset,
+which is how the UI was built and screenshotted.</p></li>
+
+<li><strong>8 · Verify it against the running app</strong>
+<pre><code>python scripts/validate_requirements.py --port 8000</code></pre>
+<p>Checks each line of the brief against the live app, writes
+<code>docs/requirements-validation.md</code>, and exits non-zero on any
+regression.</p></li>
+
+<li><strong>9 · Optional — eval suite and this report</strong>
+<pre><code>python -m eval.run_eval --limit 4        <span class="c"># smoke run, 4 cases</span>
+python -m eval.run_eval                  <span class="c"># full 14 cases, spends real money</span>
+python scripts/build_report.py           <span class="c"># rebuild docs/build-report.html</span></code></pre></li>
+</ol>
+
+<div class="note"><strong>You do not need to run the Task 2 enrichment.</strong>
+<code>data/transactions_enriched.json</code> and
+<code>data/merchant_catalog.json</code> are both committed, so the app has its
+data the moment you clone. A plain <code>python scripts/enrich_transactions.py</code>
+is safe and free — it reuses the cached catalog and reproduces the same file.
+Never pass <code>--refresh</code> on this checkout: that re-asks the model for
+every descriptor, categorisation is not stable between runs, and the figures in
+the demo video and <code>docs/demo-transcript.md</code> would stop matching the
+app.</div>
 </section>
 
 <section id="stories">
@@ -205,7 +283,7 @@ pin it.</p>
   No build step. Charts are hand-rolled inline SVG — no chart library.</p></div>
   <div class="card"><h3>Data</h3><p>Pydantic-validated JSON repository read once
   at startup, behind a <code>TransactionRepository</code> port.</p></div>
-  <div class="card"><h3>Quality</h3><p>159 tests (stdlib <code>unittest</code>,
+  <div class="card"><h3>Quality</h3><p>162 tests (stdlib <code>unittest</code>,
   no key, no network), Ruff lint + format, GitHub Actions, Dockerfile.</p></div>
 </div>
 <h3>Deliberate omissions</h3>
@@ -387,7 +465,7 @@ theorised: 2,076 ms against 3,164 ms in the recorded run.</div>
   <tr><td><code>penny/composition/</code></td><td>2</td><td>the only module allowed to name a concrete class</td></tr>
   <tr><td><code>eval/</code></td><td>8</td><td>three-phase evaluation: dataset, simulate, judge, analyze, report, runner</td></tr>
   <tr><td><code>web/</code></td><td>3</td><td>phone frame, 12 component renderers, JSONL tokenizer</td></tr>
-  <tr><td><code>tests/</code></td><td>10</td><td>159 tests: domain, application, infrastructure, presentation, architecture rules</td></tr>
+  <tr><td><code>tests/</code></td><td>10</td><td>162 tests: domain, application, infrastructure, presentation, architecture rules</td></tr>
 </table>
 <h3>The component contract</h3>
 <p>Twelve component types plus an <code>unsupported</code> fallback. Every line of
@@ -504,7 +582,7 @@ what the data says</em>.</p>
   <tr><td><code>eval/out/report.html</code></td><td>Big 3 scoring with judge + analyst, raw and FP-adjusted</td></tr>
   <tr><td><code>docs/API.md</code> + <code>openapi.json</code></td><td>the consumer contract, with client examples</td></tr>
   <tr><td><code>docs/enrichment-prompt.md</code></td><td>the Task 2 prompt, verbatim, and why it is schema-constrained</td></tr>
-  <tr><td>159 tests</td><td>parser edge cases, contract validation, guards, sessions, layering rules</td></tr>
+  <tr><td>162 tests</td><td>parser edge cases, contract validation, guards, sessions, layering rules</td></tr>
 </table>
 <h3>Evaluation design</h3>
 <p>Three phases: <strong>simulate</strong> against the live agent,
@@ -524,7 +602,7 @@ list of things to fix.</div>
   <li>All four core tasks; both bonus tracks.</li>
   <li>Enrichment: 300/300 rows — merchant 300, logos 265, location 136, recurring 59.</li>
   <li>Live agent: tool calling, multi-turn memory, streamed components, honest refusals.</li>
-  <li>159 tests, lint clean, layering enforced by test.</li>
+  <li>162 tests, lint clean, layering enforced by test.</li>
 </ul>
 <h3>Built but not verified</h3>
 <div class="warn"><strong>The Dockerfile and CI workflow have never been

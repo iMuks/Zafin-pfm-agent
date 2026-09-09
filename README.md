@@ -34,16 +34,102 @@ open Zafin-pfm-agent/docs/build-report.html      # macOS
 
 ---
 
-## Quick start
+## Run it — step by step
+
+**Prerequisites:** Python 3.12 or newer, and an Anthropic API key
+([console.anthropic.com](https://console.anthropic.com)).
+
+### 1 · Get the code
 
 ```bash
-python3 -m venv .venv && source .venv/bin/activate
+git clone https://github.com/iMuks/Zafin-pfm-agent.git
+cd Zafin-pfm-agent
+```
+
+### 2 · Create a virtual environment and install
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate         # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
+```
 
-cp .env.example .env          # then add your ANTHROPIC_API_KEY
+### 3 · Add your API key
 
-python scripts/enrich_transactions.py               # one-off, ~15s, writes data/transactions_enriched.json
-uvicorn penny.presentation.http.app:app --reload    # open http://127.0.0.1:8000
+```bash
+cp .env.example .env
+```
+
+Open `.env` and set the key:
+
+```
+ANTHROPIC_API_KEY=sk-ant-...
+```
+
+`.env` is gitignored; `.env.example` only ever holds a placeholder. Nothing else
+needs configuring — every other setting has a working default.
+
+### 4 · Start the app
+
+```bash
+uvicorn penny.presentation.http.app:app --port 8000
+```
+
+If port 8000 is already taken, use `--port 8020` and substitute that port
+everywhere below.
+
+### 5 · Open it
+
+<http://127.0.0.1:8000>
+
+Penny opens the conversation herself with a live summary of the last complete
+month — if you see that, the model call, the tool call and the stream all work.
+
+### 6 · Confirm it is healthy
+
+```bash
+curl -s http://127.0.0.1:8000/api/health
+```
+
+Returns `status: ok`, the resolved model id, the ten tool names, and the dataset
+coverage the agent is working from.
+
+Interactive API docs, generated from the route response models:
+<http://127.0.0.1:8000/docs>
+
+> **You do not need to run the Task 2 enrichment.**
+> `data/transactions_enriched.json` and `data/merchant_catalog.json` are both
+> committed, so the app has its data the moment you clone. A plain
+> `python scripts/enrich_transactions.py` is safe and free — it reuses the
+> cached catalog and reproduces the same file. Never pass `--refresh` on this
+> checkout: that re-asks the model for every descriptor, categorisation is not
+> stable across runs, and the figures in the demo video and
+> `docs/demo-transcript.md` would stop matching the app.
+
+### 7 · Verify it, without spending anything
+
+```bash
+python -m unittest discover tests        # 162 tests — no API key, no network
+python scripts/preview_components.py     # component gallery on :8001, no model calls
+```
+
+### 8 · Verify it against the running app
+
+With the server from step 4 still up:
+
+```bash
+python scripts/validate_requirements.py --port 8000
+```
+
+Checks every line of the brief against the live app and writes
+`docs/requirements-validation.md`. Exits non-zero if anything regressed.
+
+### 9 · Optional — the eval suite and the report
+
+```bash
+python -m eval.run_eval --limit 4        # smoke run, 4 cases
+python -m eval.run_eval                  # full 14 cases — spends real money
+python scripts/build_report.py           # rebuild docs/build-report.html
 ```
 
 | Command | What it does |
@@ -51,7 +137,7 @@ uvicorn penny.presentation.http.app:app --reload    # open http://127.0.0.1:8000
 | `python scripts/enrich_transactions.py` | Task 2 pipeline. Async, 4 batches in flight. |
 | `uvicorn penny.presentation.http.app:app --reload` | The app. Penny opens with a live summary. |
 | `python scripts/preview_components.py` | Component gallery on :8001. **No API key, no model calls** — use it for UI work and screenshots. |
-| `python -m unittest discover tests` | 159 tests. No key, no network. |
+| `python -m unittest discover tests` | 162 tests. No key, no network. |
 | `python -m eval.run_eval` | Layer 9 eval. **Spends money** — see below. |
 | `ruff check penny eval scripts tests` | Lint (CI enforces this). |
 
@@ -447,7 +533,7 @@ penny/
   composition/container.py    the only module that names a concrete class
 eval/                         Layer 9: dataset, simulate, judge, analyze, report, runner
 scripts/                      enrich_transactions.py, preview_components.py
-tests/                        159 tests, no key and no network
+tests/                        162 tests, no key and no network
 web/                          phone frame + component renderers (no build step)
 docs/                         build report, architecture diagram
 ```

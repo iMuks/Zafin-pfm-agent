@@ -212,14 +212,27 @@ def static_checks() -> list[Check]:
     )
 
     # Deliverables 1-3 and the bonus report.
+    readme_has = (
+        len(readme.split("\n\n")[1].strip()) > 80 if "\n\n" in readme else False,
+        "requirements.txt" in readme and "pip install" in readme,
+        "uvicorn" in readme,
+    )
     checks.append(
         Check(
             "257-260",
             "README: description, package list, run instructions",
-            PASS
-            if all(token in readme for token in ("## Quick start", "requirements.txt", "uvicorn"))
-            else FAIL,
-            "quick start, requirements.txt, uvicorn command all present",
+            # Assert the three things the brief actually names, not a heading
+            # title: a description, the packages to install, and how to run it.
+            # An earlier version matched the literal string "## Quick start",
+            # which failed the moment that section was renamed even though the
+            # requirement was still met.
+            PASS if all(readme_has) else FAIL,
+            ", ".join(
+                f"{name}: {'yes' if ok else 'NO'}"
+                for name, ok in zip(
+                    ("description", "packages", "run command"), readme_has, strict=True
+                )
+            ),
         )
     )
     video_linked = bool(re.search(r"(loom\.com|drive\.google\.com|youtu)", readme))
