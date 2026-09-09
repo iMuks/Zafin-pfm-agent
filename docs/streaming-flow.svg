@@ -1,0 +1,151 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1120 604" width="1120" height="604"
+ font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" role="img"
+ aria-label="One Penny turn end to end: what each stage does and why it exists">
+<title>Penny — one turn, end to end</title>
+<defs>
+ <marker id="fw" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0,1 L9,5 L0,9 z" fill="#6366f1"/></marker>
+ <marker id="bk" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0,1 L9,5 L0,9 z" fill="#0d9488"/></marker>
+ <marker id="tw" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0,1 L9,5 L0,9 z" fill="#0f766e"/></marker>
+ <style>
+  .t{font-size:12.5px;font-weight:650;fill:#0d1220}
+  .s{font-size:9px;fill:#5b6480}
+  .why{font-size:9px;fill:#7b6a9e;font-style:italic}
+  .m{font-size:11px;fill:#312e81;font-family:ui-monospace,Menlo,monospace;font-weight:600}
+  .lb{font-size:9.5px;fill:#6366f1;font-weight:700}
+  .rb{font-size:9.5px;fill:#0d9488;font-weight:700}
+  .lyr{font-size:8.5px;font-weight:700;letter-spacing:.11em;fill:#aab2c8}
+  .lyrin{font-size:8.5px;font-weight:700;letter-spacing:.11em;fill:#0f766e}
+  .bx{fill:#fff;stroke:#dfe3ef;stroke-width:1.1}
+  .warm{fill:#fffaf3;stroke:#f6d5a8;stroke-width:1.1}
+  .cool{fill:#f2fdfb;stroke:#a5e5da;stroke-width:1.1}
+  .hold{fill:#eafaf7;stroke:#5ecfbe;stroke-width:1.6}
+  .fl{stroke-dasharray:6 8;animation:dash 1.1s linear infinite}@keyframes dash{to{stroke-dashoffset:-14}}
+  .ring{fill:none;stroke-width:2.6;opacity:0}
+ </style>
+</defs>
+<rect width="1120" height="604" fill="#f7f8fc"/>
+<text x="30" y="36" font-size="16.5" font-weight="800" fill="#0d1220">One turn, end to end</text>
+<text x="30" y="55" class="s" font-size="10.5">Every box states what it does; the italic line is why the stage exists at all.</text>
+<rect class="bx" x="30" y="92" width="230" height="80.5" rx="10"/>
+<rect class="ring" id="ring0" x="30" y="92" width="230" height="80.5" rx="10" stroke="#6366f1"><animate class="rp" attributeName="opacity" dur="6.0s" repeatCount="indefinite" values="0;0;.85;0;0" keyTimes="0;0.9267;0.9617;1.0000;1" calcMode="spline" keySplines=".4 0 .6 1;.4 0 .6 1;.4 0 .6 1;.4 0 .6 1"/></rect>
+<text x="45" y="113" class="t">Question</text>
+<text x="45" y="130" class="s">free text, no schema · max 2000 chars</text>
+<text x="45" y="144" class="why">↳ the customer never has to learn a query</text>
+<text x="56" y="157" class="why">syntax</text>
+<rect class="bx" x="304" y="92" width="230" height="94.0" rx="10"/>
+<rect class="ring" id="ring1" x="304" y="92" width="230" height="94.0" rx="10" stroke="#6366f1"><animate class="rp" attributeName="opacity" dur="6.0s" repeatCount="indefinite" values="0;0;.85;0;0" keyTimes="0;0.0967;0.1317;0.1950;1" calcMode="spline" keySplines=".4 0 .6 1;.4 0 .6 1;.4 0 .6 1;.4 0 .6 1"/></rect>
+<text x="319" y="113" class="m">POST /agent/chat</text>
+<text x="319" y="130" class="s">JWT + EUP headers → poid → ContextVar</text>
+<text x="319" y="144" class="s">text/plain, chunked · x-session-id returned</text>
+<text x="319" y="157" class="why">↳ history lives server-side, so a client cannot</text>
+<text x="330" y="170" class="why">forge it</text>
+<rect class="bx" x="578" y="92" width="230" height="94.0" rx="10"/>
+<rect class="ring" id="ring2" x="578" y="92" width="230" height="94.0" rx="10" stroke="#6366f1"><animate class="rp" attributeName="opacity" dur="6.0s" repeatCount="indefinite" values="0;0;.85;0;0" keyTimes="0;0.2000;0.2350;0.2983;1" calcMode="spline" keySplines=".4 0 .6 1;.4 0 .6 1;.4 0 .6 1;.4 0 .6 1"/></rect>
+<text x="593" y="113" class="t">LangGraph</text>
+<text x="593" y="130" class="s">initializer → react_agent → persist</text>
+<text x="593" y="144" class="s">ModelCallLimit 8 · ToolCallValidator</text>
+<text x="593" y="157" class="why">↳ bounds the loop; a wrong tool name</text>
+<text x="604" y="170" class="why">self-corrects</text>
+<rect class="warm" x="852" y="92" width="230" height="94.0" rx="10"/>
+<rect class="ring" id="ring3" x="852" y="92" width="230" height="94.0" rx="10" stroke="#d97706"><animate class="rp" attributeName="opacity" dur="6.0s" repeatCount="indefinite" values="0;0;.85;0;0" keyTimes="0;0.3033;0.3383;0.4017;1" calcMode="spline" keySplines=".4 0 .6 1;.4 0 .6 1;.4 0 .6 1;.4 0 .6 1"/></rect>
+<text x="867" y="113" class="t">Claude picks a tool</text>
+<text x="867" y="130" class="s">claude-opus-5 · adaptive thinking</text>
+<text x="867" y="144" class="s">10 tool schemas · cached prompt prefix</text>
+<text x="867" y="157" class="why">↳ it chooses which question to ask, not the</text>
+<text x="878" y="170" class="why">answer</text>
+<text x="30" y="78" class="lyr">CUSTOMER</text>
+<text x="304" y="78" class="lyr">PRESENTATION · FastAPI</text>
+<text x="578" y="78" class="lyr">AGENT RUNTIME · LangGraph</text>
+<text x="852" y="78" class="lyr">MODEL · decide</text>
+<path id="s1" class="fl" d="M260 139 L300 139" fill="none" stroke="#6366f1" stroke-width="2.0" marker-end="url(#fw)"/>
+<text x="282" y="128" class="lb" text-anchor="middle">ask</text>
+<path id="s2" class="fl" d="M534 139 L574 139" fill="none" stroke="#6366f1" stroke-width="2.0" marker-end="url(#fw)"/>
+<text x="556" y="128" class="lb" text-anchor="middle">turn</text>
+<path id="s3" class="fl" d="M808 139 L848 139" fill="none" stroke="#6366f1" stroke-width="2.0" marker-end="url(#fw)"/>
+<text x="830" y="128" class="lb" text-anchor="middle">call</text>
+<rect class="hold" x="72" y="232.0" width="1018" height="142.0" rx="13"/>
+<text x="96" y="252.0" class="lyrin">TOOLS · DATA — the only place in the system where a figure is computed</text>
+<rect class="bx" x="96" y="262.0" width="348" height="94.0" rx="10"/>
+<text x="111" y="283.0" class="m">transactions_enriched.json</text>
+<text x="111" y="300" class="s">300 rows · merchant, category, direction, is_recurring,</text>
+<text x="111" y="314" class="s">logo_domain, city, region — built once, offline</text>
+<text x="111" y="327" class="why">↳ 84k chars, 15× the prompt: put it in context and the model must do the</text>
+<text x="122" y="340" class="why">arithmetic itself</text>
+<rect class="cool" x="742" y="262.0" width="348" height="94.0" rx="10"/>
+<rect class="ring" id="ring4" x="742" y="262.0" width="348" height="94.0" rx="10" stroke="#0d9488"><animate class="rp" attributeName="opacity" dur="6.0s" repeatCount="indefinite" values="0;0;.85;0;0" keyTimes="0;0.4067;0.4417;0.5050;1" calcMode="spline" keySplines=".4 0 .6 1;.4 0 .6 1;.4 0 .6 1;.4 0 .6 1"/></rect>
+<text x="757" y="283.0" class="t">InsightService</text>
+<text x="757" y="300" class="s">10 methods · spending, trends, merchants, recurring,</text>
+<text x="757" y="314" class="s">anomalies, forecast, income, coverage</text>
+<text x="757" y="327" class="why">↳ deterministic Python, so every figure the customer sees is testable,</text>
+<text x="768" y="340" class="why">repeatable and auditable</text>
+<path id="s5" class="fl" d="M448 309 L738 309" fill="none" stroke="#0f766e" stroke-width="2.0" marker-start="url(#tw)" marker-end="url(#tw)"/>
+<text x="593" y="298" class="rb" text-anchor="middle">query ⇄ matching rows</text>
+<path id="s4" class="fl" d="M940 186 L940 258" fill="none" stroke="#6366f1" stroke-width="2.0" marker-end="url(#fw)"/>
+<text x="948" y="213" class="lb">tool_use</text>
+<rect class="cool" x="304" y="420.0" width="230" height="94.0" rx="10"/>
+<rect class="ring" id="ring5" x="304" y="420.0" width="230" height="94.0" rx="10" stroke="#0d9488"><animate class="rp" attributeName="opacity" dur="6.0s" repeatCount="indefinite" values="0;0;.85;0;0" keyTimes="0;0.7800;0.8150;0.8783;1" calcMode="spline" keySplines=".4 0 .6 1;.4 0 .6 1;.4 0 .6 1;.4 0 .6 1"/></rect>
+<text x="319" y="441.0" class="t">Renders on arrival</text>
+<text x="319" y="458" class="s">split on \n → dispatch on component</text>
+<text x="319" y="472" class="s">text, then chart, then merchant cards</text>
+<text x="319" y="485" class="why">↳ the first sentence paints while the chart is</text>
+<text x="330" y="498" class="why">still arriving</text>
+<rect class="cool" x="578" y="420.0" width="230" height="107.5" rx="10"/>
+<rect class="ring" id="ring6" x="578" y="420.0" width="230" height="107.5" rx="10" stroke="#0d9488"><animate class="rp" attributeName="opacity" dur="6.0s" repeatCount="indefinite" values="0;0;.85;0;0" keyTimes="0;0.6767;0.7117;0.7750;1" calcMode="spline" keySplines=".4 0 .6 1;.4 0 .6 1;.4 0 .6 1;.4 0 .6 1"/></rect>
+<text x="593" y="441.0" class="t">Validate + flush</text>
+<text x="593" y="458" class="s">brace-counted extraction · contract check per</text>
+<text x="593" y="472" class="s">line</text>
+<text x="593" y="485" class="s">invalid → unsupported placeholder</text>
+<text x="593" y="498" class="why">↳ a malformed widget must never reach the</text>
+<text x="604" y="512" class="why">client</text>
+<rect class="warm" x="852" y="420.0" width="230" height="94.0" rx="10"/>
+<rect class="ring" id="ring7" x="852" y="420.0" width="230" height="94.0" rx="10" stroke="#d97706"><animate class="rp" attributeName="opacity" dur="6.0s" repeatCount="indefinite" values="0;0;.85;0;0" keyTimes="0;0.5600;0.5950;0.6583;1" calcMode="spline" keySplines=".4 0 .6 1;.4 0 .6 1;.4 0 .6 1;.4 0 .6 1"/></rect>
+<text x="867" y="441.0" class="t">Claude writes JSONL</text>
+<text x="867" y="458" class="s">one complete component per line</text>
+<text x="867" y="472" class="s">chat-response · charts · tables · intents</text>
+<text x="867" y="485" class="why">↳ structured output, so the client renders UI,</text>
+<text x="878" y="498" class="why">not prose</text>
+<text x="304" y="406.0" class="lyr">CLIENT</text>
+<text x="578" y="406.0" class="lyr">STREAM</text>
+<text x="852" y="406.0" class="lyr">MODEL · answer</text>
+<path id="s6" class="fl" d="M1000 374 L1000 416" fill="none" stroke="#0d9488" stroke-width="2.0" marker-end="url(#bk)"/>
+<text x="1008" y="401" class="rb">result</text>
+<path id="s7" class="fl" d="M852 474 L812 474" fill="none" stroke="#0d9488" stroke-width="2.0" marker-end="url(#bk)"/>
+<path id="s8" class="fl" d="M578 474 L538 474" fill="none" stroke="#0d9488" stroke-width="2.0" marker-end="url(#bk)"/>
+<text x="556" y="463" class="rb" text-anchor="middle">lines</text>
+<path id="s9" class="fl" d="M304 474 L48 474 L48 208 L111 208 L111 190" fill="none" stroke="#0d9488" stroke-width="1.8" marker-end="url(#bk)"/>
+<text x="60" y="463" class="rb">same session, next turn</text>
+<text x="30" y="563.5" class="s" font-size="10.2">Measured live: first token ~3.2 s · first complete component ~2.1 s — merchant cards reach the screen before the model's first word, because</text>
+<text x="30" y="578.5" class="s" font-size="10.2">the server emits them the moment a tool returns rather than waiting for the model to finish writing.</text>
+<g>
+<circle r="6.8" fill="#6366f1" opacity="0"><animateMotion dur="6.0s" repeatCount="indefinite" calcMode="linear" keyPoints="0;0;1;1" keyTimes="0;0.0000;0.1033;1"><mpath href="#s1"/></animateMotion><animate attributeName="opacity" dur="6.0s" repeatCount="indefinite" values="0;0;1.00;1.00;0;0" keyTimes="0;0.0000;0.0120;0.0913;0.1033;1"/></circle>
+<circle r="5.4" fill="#6366f1" opacity="0"><animateMotion dur="6.0s" repeatCount="indefinite" calcMode="linear" keyPoints="0;0;1;1" keyTimes="0;0.0092;0.1125;1"><mpath href="#s1"/></animateMotion><animate attributeName="opacity" dur="6.0s" repeatCount="indefinite" values="0;0;0.66;0.66;0;0" keyTimes="0;0.0092;0.0212;0.1005;0.1125;1"/></circle>
+<circle r="3.9" fill="#6366f1" opacity="0"><animateMotion dur="6.0s" repeatCount="indefinite" calcMode="linear" keyPoints="0;0;1;1" keyTimes="0;0.0183;0.1217;1"><mpath href="#s1"/></animateMotion><animate attributeName="opacity" dur="6.0s" repeatCount="indefinite" values="0;0;0.32;0.32;0;0" keyTimes="0;0.0183;0.0303;0.1097;0.1217;1"/></circle>
+<circle r="6.8" fill="#6366f1" opacity="0"><animateMotion dur="6.0s" repeatCount="indefinite" calcMode="linear" keyPoints="0;0;1;1" keyTimes="0;0.1033;0.2067;1"><mpath href="#s2"/></animateMotion><animate attributeName="opacity" dur="6.0s" repeatCount="indefinite" values="0;0;1.00;1.00;0;0" keyTimes="0;0.1033;0.1153;0.1947;0.2067;1"/></circle>
+<circle r="5.4" fill="#6366f1" opacity="0"><animateMotion dur="6.0s" repeatCount="indefinite" calcMode="linear" keyPoints="0;0;1;1" keyTimes="0;0.1125;0.2158;1"><mpath href="#s2"/></animateMotion><animate attributeName="opacity" dur="6.0s" repeatCount="indefinite" values="0;0;0.66;0.66;0;0" keyTimes="0;0.1125;0.1245;0.2038;0.2158;1"/></circle>
+<circle r="3.9" fill="#6366f1" opacity="0"><animateMotion dur="6.0s" repeatCount="indefinite" calcMode="linear" keyPoints="0;0;1;1" keyTimes="0;0.1217;0.2250;1"><mpath href="#s2"/></animateMotion><animate attributeName="opacity" dur="6.0s" repeatCount="indefinite" values="0;0;0.32;0.32;0;0" keyTimes="0;0.1217;0.1337;0.2130;0.2250;1"/></circle>
+<circle r="6.8" fill="#6366f1" opacity="0"><animateMotion dur="6.0s" repeatCount="indefinite" calcMode="linear" keyPoints="0;0;1;1" keyTimes="0;0.2067;0.3100;1"><mpath href="#s3"/></animateMotion><animate attributeName="opacity" dur="6.0s" repeatCount="indefinite" values="0;0;1.00;1.00;0;0" keyTimes="0;0.2067;0.2187;0.2980;0.3100;1"/></circle>
+<circle r="5.4" fill="#6366f1" opacity="0"><animateMotion dur="6.0s" repeatCount="indefinite" calcMode="linear" keyPoints="0;0;1;1" keyTimes="0;0.2158;0.3192;1"><mpath href="#s3"/></animateMotion><animate attributeName="opacity" dur="6.0s" repeatCount="indefinite" values="0;0;0.66;0.66;0;0" keyTimes="0;0.2158;0.2278;0.3072;0.3192;1"/></circle>
+<circle r="3.9" fill="#6366f1" opacity="0"><animateMotion dur="6.0s" repeatCount="indefinite" calcMode="linear" keyPoints="0;0;1;1" keyTimes="0;0.2250;0.3283;1"><mpath href="#s3"/></animateMotion><animate attributeName="opacity" dur="6.0s" repeatCount="indefinite" values="0;0;0.32;0.32;0;0" keyTimes="0;0.2250;0.2370;0.3163;0.3283;1"/></circle>
+<circle r="6.8" fill="#6366f1" opacity="0"><animateMotion dur="6.0s" repeatCount="indefinite" calcMode="linear" keyPoints="0;0;1;1" keyTimes="0;0.3100;0.4133;1"><mpath href="#s4"/></animateMotion><animate attributeName="opacity" dur="6.0s" repeatCount="indefinite" values="0;0;1.00;1.00;0;0" keyTimes="0;0.3100;0.3220;0.4013;0.4133;1"/></circle>
+<circle r="5.4" fill="#6366f1" opacity="0"><animateMotion dur="6.0s" repeatCount="indefinite" calcMode="linear" keyPoints="0;0;1;1" keyTimes="0;0.3192;0.4225;1"><mpath href="#s4"/></animateMotion><animate attributeName="opacity" dur="6.0s" repeatCount="indefinite" values="0;0;0.66;0.66;0;0" keyTimes="0;0.3192;0.3312;0.4105;0.4225;1"/></circle>
+<circle r="3.9" fill="#6366f1" opacity="0"><animateMotion dur="6.0s" repeatCount="indefinite" calcMode="linear" keyPoints="0;0;1;1" keyTimes="0;0.3283;0.4317;1"><mpath href="#s4"/></animateMotion><animate attributeName="opacity" dur="6.0s" repeatCount="indefinite" values="0;0;0.32;0.32;0;0" keyTimes="0;0.3283;0.3403;0.4197;0.4317;1"/></circle>
+<circle r="6.8" fill="#0f766e" opacity="0"><animateMotion dur="6.0s" repeatCount="indefinite" calcMode="linear" keyPoints="1;1;0;0" keyTimes="0;0.4133;0.4900;1"><mpath href="#s5"/></animateMotion><animate attributeName="opacity" dur="6.0s" repeatCount="indefinite" values="0;0;1.00;1.00;0;0" keyTimes="0;0.4133;0.4253;0.4780;0.4900;1"/></circle>
+<circle r="5.4" fill="#0f766e" opacity="0"><animateMotion dur="6.0s" repeatCount="indefinite" calcMode="linear" keyPoints="1;1;0;0" keyTimes="0;0.4225;0.4992;1"><mpath href="#s5"/></animateMotion><animate attributeName="opacity" dur="6.0s" repeatCount="indefinite" values="0;0;0.66;0.66;0;0" keyTimes="0;0.4225;0.4345;0.4872;0.4992;1"/></circle>
+<circle r="3.9" fill="#0f766e" opacity="0"><animateMotion dur="6.0s" repeatCount="indefinite" calcMode="linear" keyPoints="1;1;0;0" keyTimes="0;0.4317;0.5083;1"><mpath href="#s5"/></animateMotion><animate attributeName="opacity" dur="6.0s" repeatCount="indefinite" values="0;0;0.32;0.32;0;0" keyTimes="0;0.4317;0.4437;0.4963;0.5083;1"/></circle>
+<circle r="6.8" fill="#0f766e" opacity="0"><animateMotion dur="6.0s" repeatCount="indefinite" calcMode="linear" keyPoints="0;0;1;1" keyTimes="0;0.4900;0.5667;1"><mpath href="#s5"/></animateMotion><animate attributeName="opacity" dur="6.0s" repeatCount="indefinite" values="0;0;1.00;1.00;0;0" keyTimes="0;0.4900;0.5020;0.5547;0.5667;1"/></circle>
+<circle r="5.4" fill="#0f766e" opacity="0"><animateMotion dur="6.0s" repeatCount="indefinite" calcMode="linear" keyPoints="0;0;1;1" keyTimes="0;0.4992;0.5758;1"><mpath href="#s5"/></animateMotion><animate attributeName="opacity" dur="6.0s" repeatCount="indefinite" values="0;0;0.66;0.66;0;0" keyTimes="0;0.4992;0.5112;0.5638;0.5758;1"/></circle>
+<circle r="3.9" fill="#0f766e" opacity="0"><animateMotion dur="6.0s" repeatCount="indefinite" calcMode="linear" keyPoints="0;0;1;1" keyTimes="0;0.5083;0.5850;1"><mpath href="#s5"/></animateMotion><animate attributeName="opacity" dur="6.0s" repeatCount="indefinite" values="0;0;0.32;0.32;0;0" keyTimes="0;0.5083;0.5203;0.5730;0.5850;1"/></circle>
+<circle r="6.8" fill="#0d9488" opacity="0"><animateMotion dur="6.0s" repeatCount="indefinite" calcMode="linear" keyPoints="0;0;1;1" keyTimes="0;0.5667;0.6833;1"><mpath href="#s6"/></animateMotion><animate attributeName="opacity" dur="6.0s" repeatCount="indefinite" values="0;0;1.00;1.00;0;0" keyTimes="0;0.5667;0.5787;0.6713;0.6833;1"/></circle>
+<circle r="5.4" fill="#0d9488" opacity="0"><animateMotion dur="6.0s" repeatCount="indefinite" calcMode="linear" keyPoints="0;0;1;1" keyTimes="0;0.5758;0.6925;1"><mpath href="#s6"/></animateMotion><animate attributeName="opacity" dur="6.0s" repeatCount="indefinite" values="0;0;0.66;0.66;0;0" keyTimes="0;0.5758;0.5878;0.6805;0.6925;1"/></circle>
+<circle r="3.9" fill="#0d9488" opacity="0"><animateMotion dur="6.0s" repeatCount="indefinite" calcMode="linear" keyPoints="0;0;1;1" keyTimes="0;0.5850;0.7017;1"><mpath href="#s6"/></animateMotion><animate attributeName="opacity" dur="6.0s" repeatCount="indefinite" values="0;0;0.32;0.32;0;0" keyTimes="0;0.5850;0.5970;0.6897;0.7017;1"/></circle>
+<circle r="6.8" fill="#0d9488" opacity="0"><animateMotion dur="6.0s" repeatCount="indefinite" calcMode="linear" keyPoints="0;0;1;1" keyTimes="0;0.6833;0.7367;1"><mpath href="#s7"/></animateMotion><animate attributeName="opacity" dur="6.0s" repeatCount="indefinite" values="0;0;1.00;1.00;0;0" keyTimes="0;0.6833;0.6953;0.7247;0.7367;1"/></circle>
+<circle r="5.4" fill="#0d9488" opacity="0"><animateMotion dur="6.0s" repeatCount="indefinite" calcMode="linear" keyPoints="0;0;1;1" keyTimes="0;0.6925;0.7458;1"><mpath href="#s7"/></animateMotion><animate attributeName="opacity" dur="6.0s" repeatCount="indefinite" values="0;0;0.66;0.66;0;0" keyTimes="0;0.6925;0.7045;0.7338;0.7458;1"/></circle>
+<circle r="3.9" fill="#0d9488" opacity="0"><animateMotion dur="6.0s" repeatCount="indefinite" calcMode="linear" keyPoints="0;0;1;1" keyTimes="0;0.7017;0.7550;1"><mpath href="#s7"/></animateMotion><animate attributeName="opacity" dur="6.0s" repeatCount="indefinite" values="0;0;0.32;0.32;0;0" keyTimes="0;0.7017;0.7137;0.7430;0.7550;1"/></circle>
+<circle r="6.8" fill="#0d9488" opacity="0"><animateMotion dur="6.0s" repeatCount="indefinite" calcMode="linear" keyPoints="0;0;1;1" keyTimes="0;0.7367;0.7867;1"><mpath href="#s8"/></animateMotion><animate attributeName="opacity" dur="6.0s" repeatCount="indefinite" values="0;0;1.00;1.00;0;0" keyTimes="0;0.7367;0.7487;0.7747;0.7867;1"/></circle>
+<circle r="5.4" fill="#0d9488" opacity="0"><animateMotion dur="6.0s" repeatCount="indefinite" calcMode="linear" keyPoints="0;0;1;1" keyTimes="0;0.7458;0.7958;1"><mpath href="#s8"/></animateMotion><animate attributeName="opacity" dur="6.0s" repeatCount="indefinite" values="0;0;0.66;0.66;0;0" keyTimes="0;0.7458;0.7578;0.7838;0.7958;1"/></circle>
+<circle r="3.9" fill="#0d9488" opacity="0"><animateMotion dur="6.0s" repeatCount="indefinite" calcMode="linear" keyPoints="0;0;1;1" keyTimes="0;0.7550;0.8050;1"><mpath href="#s8"/></animateMotion><animate attributeName="opacity" dur="6.0s" repeatCount="indefinite" values="0;0;0.32;0.32;0;0" keyTimes="0;0.7550;0.7670;0.7930;0.8050;1"/></circle>
+<circle r="6.0" fill="#0d9488" opacity="0"><animateMotion dur="6.0s" repeatCount="indefinite" calcMode="linear" keyPoints="0;0;1;1" keyTimes="0;0.7867;0.9533;1"><mpath href="#s9"/></animateMotion><animate attributeName="opacity" dur="6.0s" repeatCount="indefinite" values="0;0;1.00;1.00;0;0" keyTimes="0;0.7867;0.7987;0.9413;0.9533;1"/></circle>
+<circle r="4.7" fill="#0d9488" opacity="0"><animateMotion dur="6.0s" repeatCount="indefinite" calcMode="linear" keyPoints="0;0;1;1" keyTimes="0;0.7992;0.9658;1"><mpath href="#s9"/></animateMotion><animate attributeName="opacity" dur="6.0s" repeatCount="indefinite" values="0;0;0.66;0.66;0;0" keyTimes="0;0.7992;0.8112;0.9538;0.9658;1"/></circle>
+<circle r="3.5" fill="#0d9488" opacity="0"><animateMotion dur="6.0s" repeatCount="indefinite" calcMode="linear" keyPoints="0;0;1;1" keyTimes="0;0.8117;0.9783;1"><mpath href="#s9"/></animateMotion><animate attributeName="opacity" dur="6.0s" repeatCount="indefinite" values="0;0;0.32;0.32;0;0" keyTimes="0;0.8117;0.8237;0.9663;0.9783;1"/></circle>
+</g>
+</svg>

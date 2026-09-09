@@ -1,0 +1,1378 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Penny \u2014 Conversational PFM Agent",
+    "description": "A chat-based spending companion for a US retail bank.\n\nBoth agent endpoints stream **newline-delimited JSON**: one complete UI component per line, over HTTP chunked transfer. Read the body line by line and dispatch on each line's `component` key \u2014 do not buffer the whole response and parse it once.\n\nConversation history lives server-side, keyed by session. Echo the `x-session-id` response header on your next request to continue a conversation.\n\nThe full component contract, framing rules and client examples are in `docs/API.md`.",
+    "version": "1.0.0"
+  },
+  "paths": {
+    "/api/health": {
+      "get": {
+        "tags": [
+          "operations"
+        ],
+        "summary": "Readiness and dataset summary",
+        "description": "Operational readiness \u2014 and the dataset summary the UI chrome displays.",
+        "operationId": "health_api_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The enriched dataset is missing."
+          }
+        }
+      }
+    },
+    "/agent/chat": {
+      "post": {
+        "tags": [
+          "agent"
+        ],
+        "summary": "Ask Penny a question (streaming)",
+        "description": "Send one customer message and receive a stream of UI components.\n\nConversation history is **not** part of the request: it is held server-side and keyed by session, so a client cannot replay or rewrite earlier turns. Pass the `x-session-id` header (or `session_id` in the body) returned by a previous call to continue a conversation; omit it to start a new one.",
+        "operationId": "chat_agent_chat_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChatRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Newline-delimited JSON over chunked transfer. Each line is one complete UI component identified by its `component` key; read the body line by line and render each line as it arrives. `done` terminates the stream. Consumers must tolerate an unknown `component` value by ignoring or placeholder-rendering it, so a newer server can add components without breaking older clients.",
+            "headers": {
+              "x-session-id": {
+                "description": "Server-side conversation id. Echo it back on the next request to continue the same conversation.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "Correlation id for this request, also present in server logs.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string",
+                  "title": "NewlineDelimitedComponentLines",
+                  "description": "One JSON object per line; each line validates against ComponentLine.",
+                  "x-ndjson-line-schema": {
+                    "$defs": {
+                      "BarChartLine": {
+                        "properties": {
+                          "component": {
+                            "const": "bar-chart",
+                            "title": "Component",
+                            "type": "string"
+                          },
+                          "valueTitle": {
+                            "title": "Valuetitle",
+                            "type": "string"
+                          },
+                          "labels": {
+                            "items": {
+                              "type": "string"
+                            },
+                            "title": "Labels",
+                            "type": "array"
+                          },
+                          "data": {
+                            "items": {
+                              "$ref": "#/$defs/ChartPoint"
+                            },
+                            "title": "Data",
+                            "type": "array"
+                          }
+                        },
+                        "required": [
+                          "component",
+                          "valueTitle",
+                          "labels",
+                          "data"
+                        ],
+                        "title": "BarChartLine",
+                        "type": "object"
+                      },
+                      "ChartPoint": {
+                        "properties": {
+                          "label": {
+                            "description": "X-axis label for this point.",
+                            "title": "Label",
+                            "type": "string"
+                          },
+                          "values": {
+                            "description": "One value per series in `labels`. A pie slice carries exactly one, 0-100.",
+                            "items": {
+                              "type": "number"
+                            },
+                            "title": "Values",
+                            "type": "array"
+                          }
+                        },
+                        "required": [
+                          "label",
+                          "values"
+                        ],
+                        "title": "ChartPoint",
+                        "type": "object"
+                      },
+                      "ChatResponseLine": {
+                        "properties": {
+                          "component": {
+                            "const": "chat-response",
+                            "title": "Component",
+                            "type": "string"
+                          },
+                          "body": {
+                            "title": "Body",
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "component",
+                          "body"
+                        ],
+                        "title": "ChatResponseLine",
+                        "type": "object"
+                      },
+                      "DoneLine": {
+                        "properties": {
+                          "component": {
+                            "const": "done",
+                            "title": "Component",
+                            "type": "string"
+                          },
+                          "telemetry": {
+                            "anyOf": [
+                              {
+                                "additionalProperties": true,
+                                "type": "object"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "description": "Timings for this turn: ttft_ms, ttfc_ms, components, tool_calls.",
+                            "title": "Telemetry"
+                          }
+                        },
+                        "required": [
+                          "component"
+                        ],
+                        "title": "DoneLine",
+                        "type": "object"
+                      },
+                      "FeedbackLine": {
+                        "properties": {
+                          "component": {
+                            "const": "feedback",
+                            "title": "Component",
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "component"
+                        ],
+                        "title": "FeedbackLine",
+                        "type": "object"
+                      },
+                      "LineChartLine": {
+                        "properties": {
+                          "component": {
+                            "const": "line-chart",
+                            "title": "Component",
+                            "type": "string"
+                          },
+                          "valueTitle": {
+                            "title": "Valuetitle",
+                            "type": "string"
+                          },
+                          "labels": {
+                            "items": {
+                              "type": "string"
+                            },
+                            "title": "Labels",
+                            "type": "array"
+                          },
+                          "data": {
+                            "items": {
+                              "$ref": "#/$defs/ChartPoint"
+                            },
+                            "title": "Data",
+                            "type": "array"
+                          }
+                        },
+                        "required": [
+                          "component",
+                          "valueTitle",
+                          "labels",
+                          "data"
+                        ],
+                        "title": "LineChartLine",
+                        "type": "object"
+                      },
+                      "MerchantCard": {
+                        "properties": {
+                          "merchant": {
+                            "title": "Merchant",
+                            "type": "string"
+                          },
+                          "amount": {
+                            "title": "Amount",
+                            "type": "number"
+                          },
+                          "subtitle": {
+                            "title": "Subtitle",
+                            "type": "string"
+                          },
+                          "logo_domain": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "title": "Logo Domain"
+                          }
+                        },
+                        "required": [
+                          "merchant",
+                          "amount",
+                          "subtitle"
+                        ],
+                        "title": "MerchantCard",
+                        "type": "object"
+                      },
+                      "OrderedListLine": {
+                        "properties": {
+                          "component": {
+                            "const": "ordered-list",
+                            "title": "Component",
+                            "type": "string"
+                          },
+                          "items": {
+                            "items": {
+                              "type": "string"
+                            },
+                            "title": "Items",
+                            "type": "array"
+                          }
+                        },
+                        "required": [
+                          "component",
+                          "items"
+                        ],
+                        "title": "OrderedListLine",
+                        "type": "object"
+                      },
+                      "PieChartLine": {
+                        "properties": {
+                          "component": {
+                            "const": "pie-chart",
+                            "title": "Component",
+                            "type": "string"
+                          },
+                          "valueTitle": {
+                            "title": "Valuetitle",
+                            "type": "string"
+                          },
+                          "labels": {
+                            "items": {
+                              "type": "string"
+                            },
+                            "title": "Labels",
+                            "type": "array"
+                          },
+                          "data": {
+                            "description": "One value per slice, each a percentage 0-100.",
+                            "items": {
+                              "$ref": "#/$defs/ChartPoint"
+                            },
+                            "title": "Data",
+                            "type": "array"
+                          }
+                        },
+                        "required": [
+                          "component",
+                          "valueTitle",
+                          "labels",
+                          "data"
+                        ],
+                        "title": "PieChartLine",
+                        "type": "object"
+                      },
+                      "SmartLoadingLine": {
+                        "properties": {
+                          "component": {
+                            "const": "smart-loading",
+                            "title": "Component",
+                            "type": "string"
+                          },
+                          "body": {
+                            "description": "Human-readable label for the work in progress.",
+                            "title": "Body",
+                            "type": "string"
+                          },
+                          "tool": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "description": "Tool being executed, when applicable.",
+                            "title": "Tool"
+                          }
+                        },
+                        "required": [
+                          "component",
+                          "body"
+                        ],
+                        "title": "SmartLoadingLine",
+                        "type": "object"
+                      },
+                      "SuggestedIntentsLine": {
+                        "properties": {
+                          "component": {
+                            "const": "suggested-user-intents",
+                            "title": "Component",
+                            "type": "string"
+                          },
+                          "intents": {
+                            "description": "Short follow-ups the customer could tap next.",
+                            "items": {
+                              "type": "string"
+                            },
+                            "title": "Intents",
+                            "type": "array"
+                          }
+                        },
+                        "required": [
+                          "component",
+                          "intents"
+                        ],
+                        "title": "SuggestedIntentsLine",
+                        "type": "object"
+                      },
+                      "TableLine": {
+                        "properties": {
+                          "component": {
+                            "const": "table",
+                            "title": "Component",
+                            "type": "string"
+                          },
+                          "headers": {
+                            "items": {
+                              "type": "string"
+                            },
+                            "title": "Headers",
+                            "type": "array"
+                          },
+                          "data": {
+                            "description": "Every row has exactly as many cells as `headers`.",
+                            "items": {
+                              "items": {
+                                "type": "string"
+                              },
+                              "type": "array"
+                            },
+                            "title": "Data",
+                            "type": "array"
+                          }
+                        },
+                        "required": [
+                          "component",
+                          "headers",
+                          "data"
+                        ],
+                        "title": "TableLine",
+                        "type": "object"
+                      },
+                      "TransactionListLine": {
+                        "properties": {
+                          "component": {
+                            "const": "transaction-list",
+                            "title": "Component",
+                            "type": "string"
+                          },
+                          "transactions": {
+                            "items": {
+                              "$ref": "#/$defs/MerchantCard"
+                            },
+                            "title": "Transactions",
+                            "type": "array"
+                          }
+                        },
+                        "required": [
+                          "component",
+                          "transactions"
+                        ],
+                        "title": "TransactionListLine",
+                        "type": "object"
+                      },
+                      "TryAgainErrorLine": {
+                        "properties": {
+                          "component": {
+                            "const": "try-again-error",
+                            "title": "Component",
+                            "type": "string"
+                          },
+                          "body": {
+                            "title": "Body",
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "component",
+                          "body"
+                        ],
+                        "title": "TryAgainErrorLine",
+                        "type": "object"
+                      },
+                      "UnorderedListLine": {
+                        "properties": {
+                          "component": {
+                            "const": "unordered-list",
+                            "title": "Component",
+                            "type": "string"
+                          },
+                          "items": {
+                            "items": {
+                              "type": "string"
+                            },
+                            "title": "Items",
+                            "type": "array"
+                          }
+                        },
+                        "required": [
+                          "component",
+                          "items"
+                        ],
+                        "title": "UnorderedListLine",
+                        "type": "object"
+                      },
+                      "UnsupportedLine": {
+                        "description": "A line that failed contract validation, or a component this client is too old to know.\n\nRendered as a visible placeholder rather than dropped: a silently discarded\ncomponent would hide a client/server version mismatch.",
+                        "properties": {
+                          "component": {
+                            "const": "unsupported",
+                            "title": "Component",
+                            "type": "string"
+                          },
+                          "reason": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "title": "Reason"
+                          },
+                          "raw": {
+                            "anyOf": [
+                              {
+                                "additionalProperties": true,
+                                "type": "object"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "title": "Raw"
+                          }
+                        },
+                        "required": [
+                          "component"
+                        ],
+                        "title": "UnsupportedLine",
+                        "type": "object"
+                      }
+                    },
+                    "discriminator": {
+                      "mapping": {
+                        "bar-chart": "#/$defs/BarChartLine",
+                        "chat-response": "#/$defs/ChatResponseLine",
+                        "done": "#/$defs/DoneLine",
+                        "feedback": "#/$defs/FeedbackLine",
+                        "line-chart": "#/$defs/LineChartLine",
+                        "ordered-list": "#/$defs/OrderedListLine",
+                        "pie-chart": "#/$defs/PieChartLine",
+                        "smart-loading": "#/$defs/SmartLoadingLine",
+                        "suggested-user-intents": "#/$defs/SuggestedIntentsLine",
+                        "table": "#/$defs/TableLine",
+                        "transaction-list": "#/$defs/TransactionListLine",
+                        "try-again-error": "#/$defs/TryAgainErrorLine",
+                        "unordered-list": "#/$defs/UnorderedListLine",
+                        "unsupported": "#/$defs/UnsupportedLine"
+                      },
+                      "propertyName": "component"
+                    },
+                    "oneOf": [
+                      {
+                        "$ref": "#/$defs/ChatResponseLine"
+                      },
+                      {
+                        "$ref": "#/$defs/TableLine"
+                      },
+                      {
+                        "$ref": "#/$defs/OrderedListLine"
+                      },
+                      {
+                        "$ref": "#/$defs/UnorderedListLine"
+                      },
+                      {
+                        "$ref": "#/$defs/LineChartLine"
+                      },
+                      {
+                        "$ref": "#/$defs/BarChartLine"
+                      },
+                      {
+                        "$ref": "#/$defs/PieChartLine"
+                      },
+                      {
+                        "$ref": "#/$defs/SuggestedIntentsLine"
+                      },
+                      {
+                        "$ref": "#/$defs/TransactionListLine"
+                      },
+                      {
+                        "$ref": "#/$defs/SmartLoadingLine"
+                      },
+                      {
+                        "$ref": "#/$defs/TryAgainErrorLine"
+                      },
+                      {
+                        "$ref": "#/$defs/FeedbackLine"
+                      },
+                      {
+                        "$ref": "#/$defs/DoneLine"
+                      },
+                      {
+                        "$ref": "#/$defs/UnsupportedLine"
+                      }
+                    ]
+                  }
+                },
+                "example": "{\"component\":\"smart-loading\",\"body\":\"Adding up category spend\"}\n{\"component\":\"chat-response\",\"body\":\"You spent $412.80 on Dining in June.\"}\n{\"component\":\"bar-chart\",\"valueTitle\":\"Spend ($)\",\"labels\":[\"Dining\"],\"data\":[{\"label\":\"May\",\"values\":[349.1]},{\"label\":\"Jun\",\"values\":[412.8]}]}\n{\"component\":\"suggested-user-intents\",\"intents\":[\"Compare to May\"]}\n{\"component\":\"feedback\"}\n{\"component\":\"done\",\"telemetry\":{\"ttft_ms\":2463.0,\"ttfc_ms\":3911.5,\"components\":3,\"tool_calls\":1}}\n"
+              }
+            }
+          },
+          "503": {
+            "description": "Dataset not enriched yet, or no model credentials configured."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/agent/greeting": {
+      "get": {
+        "tags": [
+          "agent"
+        ],
+        "summary": "Penny's unprompted opener (streaming)",
+        "description": "The proactive summary Penny offers when a session opens: a real figure from the customer's recent spending plus follow-up intents. Same component stream as `/agent/chat`. A live model call on every request \u2014 never cached.",
+        "operationId": "greeting_agent_greeting_get",
+        "responses": {
+          "200": {
+            "description": "Newline-delimited JSON over chunked transfer. Each line is one complete UI component identified by its `component` key; read the body line by line and render each line as it arrives. `done` terminates the stream. Consumers must tolerate an unknown `component` value by ignoring or placeholder-rendering it, so a newer server can add components without breaking older clients.",
+            "headers": {
+              "x-session-id": {
+                "description": "Server-side conversation id. Echo it back on the next request to continue the same conversation.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "x-request-id": {
+                "description": "Correlation id for this request, also present in server logs.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string",
+                  "title": "NewlineDelimitedComponentLines",
+                  "description": "One JSON object per line; each line validates against ComponentLine.",
+                  "x-ndjson-line-schema": {
+                    "$defs": {
+                      "BarChartLine": {
+                        "properties": {
+                          "component": {
+                            "const": "bar-chart",
+                            "title": "Component",
+                            "type": "string"
+                          },
+                          "valueTitle": {
+                            "title": "Valuetitle",
+                            "type": "string"
+                          },
+                          "labels": {
+                            "items": {
+                              "type": "string"
+                            },
+                            "title": "Labels",
+                            "type": "array"
+                          },
+                          "data": {
+                            "items": {
+                              "$ref": "#/$defs/ChartPoint"
+                            },
+                            "title": "Data",
+                            "type": "array"
+                          }
+                        },
+                        "required": [
+                          "component",
+                          "valueTitle",
+                          "labels",
+                          "data"
+                        ],
+                        "title": "BarChartLine",
+                        "type": "object"
+                      },
+                      "ChartPoint": {
+                        "properties": {
+                          "label": {
+                            "description": "X-axis label for this point.",
+                            "title": "Label",
+                            "type": "string"
+                          },
+                          "values": {
+                            "description": "One value per series in `labels`. A pie slice carries exactly one, 0-100.",
+                            "items": {
+                              "type": "number"
+                            },
+                            "title": "Values",
+                            "type": "array"
+                          }
+                        },
+                        "required": [
+                          "label",
+                          "values"
+                        ],
+                        "title": "ChartPoint",
+                        "type": "object"
+                      },
+                      "ChatResponseLine": {
+                        "properties": {
+                          "component": {
+                            "const": "chat-response",
+                            "title": "Component",
+                            "type": "string"
+                          },
+                          "body": {
+                            "title": "Body",
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "component",
+                          "body"
+                        ],
+                        "title": "ChatResponseLine",
+                        "type": "object"
+                      },
+                      "DoneLine": {
+                        "properties": {
+                          "component": {
+                            "const": "done",
+                            "title": "Component",
+                            "type": "string"
+                          },
+                          "telemetry": {
+                            "anyOf": [
+                              {
+                                "additionalProperties": true,
+                                "type": "object"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "description": "Timings for this turn: ttft_ms, ttfc_ms, components, tool_calls.",
+                            "title": "Telemetry"
+                          }
+                        },
+                        "required": [
+                          "component"
+                        ],
+                        "title": "DoneLine",
+                        "type": "object"
+                      },
+                      "FeedbackLine": {
+                        "properties": {
+                          "component": {
+                            "const": "feedback",
+                            "title": "Component",
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "component"
+                        ],
+                        "title": "FeedbackLine",
+                        "type": "object"
+                      },
+                      "LineChartLine": {
+                        "properties": {
+                          "component": {
+                            "const": "line-chart",
+                            "title": "Component",
+                            "type": "string"
+                          },
+                          "valueTitle": {
+                            "title": "Valuetitle",
+                            "type": "string"
+                          },
+                          "labels": {
+                            "items": {
+                              "type": "string"
+                            },
+                            "title": "Labels",
+                            "type": "array"
+                          },
+                          "data": {
+                            "items": {
+                              "$ref": "#/$defs/ChartPoint"
+                            },
+                            "title": "Data",
+                            "type": "array"
+                          }
+                        },
+                        "required": [
+                          "component",
+                          "valueTitle",
+                          "labels",
+                          "data"
+                        ],
+                        "title": "LineChartLine",
+                        "type": "object"
+                      },
+                      "MerchantCard": {
+                        "properties": {
+                          "merchant": {
+                            "title": "Merchant",
+                            "type": "string"
+                          },
+                          "amount": {
+                            "title": "Amount",
+                            "type": "number"
+                          },
+                          "subtitle": {
+                            "title": "Subtitle",
+                            "type": "string"
+                          },
+                          "logo_domain": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "title": "Logo Domain"
+                          }
+                        },
+                        "required": [
+                          "merchant",
+                          "amount",
+                          "subtitle"
+                        ],
+                        "title": "MerchantCard",
+                        "type": "object"
+                      },
+                      "OrderedListLine": {
+                        "properties": {
+                          "component": {
+                            "const": "ordered-list",
+                            "title": "Component",
+                            "type": "string"
+                          },
+                          "items": {
+                            "items": {
+                              "type": "string"
+                            },
+                            "title": "Items",
+                            "type": "array"
+                          }
+                        },
+                        "required": [
+                          "component",
+                          "items"
+                        ],
+                        "title": "OrderedListLine",
+                        "type": "object"
+                      },
+                      "PieChartLine": {
+                        "properties": {
+                          "component": {
+                            "const": "pie-chart",
+                            "title": "Component",
+                            "type": "string"
+                          },
+                          "valueTitle": {
+                            "title": "Valuetitle",
+                            "type": "string"
+                          },
+                          "labels": {
+                            "items": {
+                              "type": "string"
+                            },
+                            "title": "Labels",
+                            "type": "array"
+                          },
+                          "data": {
+                            "description": "One value per slice, each a percentage 0-100.",
+                            "items": {
+                              "$ref": "#/$defs/ChartPoint"
+                            },
+                            "title": "Data",
+                            "type": "array"
+                          }
+                        },
+                        "required": [
+                          "component",
+                          "valueTitle",
+                          "labels",
+                          "data"
+                        ],
+                        "title": "PieChartLine",
+                        "type": "object"
+                      },
+                      "SmartLoadingLine": {
+                        "properties": {
+                          "component": {
+                            "const": "smart-loading",
+                            "title": "Component",
+                            "type": "string"
+                          },
+                          "body": {
+                            "description": "Human-readable label for the work in progress.",
+                            "title": "Body",
+                            "type": "string"
+                          },
+                          "tool": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "description": "Tool being executed, when applicable.",
+                            "title": "Tool"
+                          }
+                        },
+                        "required": [
+                          "component",
+                          "body"
+                        ],
+                        "title": "SmartLoadingLine",
+                        "type": "object"
+                      },
+                      "SuggestedIntentsLine": {
+                        "properties": {
+                          "component": {
+                            "const": "suggested-user-intents",
+                            "title": "Component",
+                            "type": "string"
+                          },
+                          "intents": {
+                            "description": "Short follow-ups the customer could tap next.",
+                            "items": {
+                              "type": "string"
+                            },
+                            "title": "Intents",
+                            "type": "array"
+                          }
+                        },
+                        "required": [
+                          "component",
+                          "intents"
+                        ],
+                        "title": "SuggestedIntentsLine",
+                        "type": "object"
+                      },
+                      "TableLine": {
+                        "properties": {
+                          "component": {
+                            "const": "table",
+                            "title": "Component",
+                            "type": "string"
+                          },
+                          "headers": {
+                            "items": {
+                              "type": "string"
+                            },
+                            "title": "Headers",
+                            "type": "array"
+                          },
+                          "data": {
+                            "description": "Every row has exactly as many cells as `headers`.",
+                            "items": {
+                              "items": {
+                                "type": "string"
+                              },
+                              "type": "array"
+                            },
+                            "title": "Data",
+                            "type": "array"
+                          }
+                        },
+                        "required": [
+                          "component",
+                          "headers",
+                          "data"
+                        ],
+                        "title": "TableLine",
+                        "type": "object"
+                      },
+                      "TransactionListLine": {
+                        "properties": {
+                          "component": {
+                            "const": "transaction-list",
+                            "title": "Component",
+                            "type": "string"
+                          },
+                          "transactions": {
+                            "items": {
+                              "$ref": "#/$defs/MerchantCard"
+                            },
+                            "title": "Transactions",
+                            "type": "array"
+                          }
+                        },
+                        "required": [
+                          "component",
+                          "transactions"
+                        ],
+                        "title": "TransactionListLine",
+                        "type": "object"
+                      },
+                      "TryAgainErrorLine": {
+                        "properties": {
+                          "component": {
+                            "const": "try-again-error",
+                            "title": "Component",
+                            "type": "string"
+                          },
+                          "body": {
+                            "title": "Body",
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "component",
+                          "body"
+                        ],
+                        "title": "TryAgainErrorLine",
+                        "type": "object"
+                      },
+                      "UnorderedListLine": {
+                        "properties": {
+                          "component": {
+                            "const": "unordered-list",
+                            "title": "Component",
+                            "type": "string"
+                          },
+                          "items": {
+                            "items": {
+                              "type": "string"
+                            },
+                            "title": "Items",
+                            "type": "array"
+                          }
+                        },
+                        "required": [
+                          "component",
+                          "items"
+                        ],
+                        "title": "UnorderedListLine",
+                        "type": "object"
+                      },
+                      "UnsupportedLine": {
+                        "description": "A line that failed contract validation, or a component this client is too old to know.\n\nRendered as a visible placeholder rather than dropped: a silently discarded\ncomponent would hide a client/server version mismatch.",
+                        "properties": {
+                          "component": {
+                            "const": "unsupported",
+                            "title": "Component",
+                            "type": "string"
+                          },
+                          "reason": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "title": "Reason"
+                          },
+                          "raw": {
+                            "anyOf": [
+                              {
+                                "additionalProperties": true,
+                                "type": "object"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "title": "Raw"
+                          }
+                        },
+                        "required": [
+                          "component"
+                        ],
+                        "title": "UnsupportedLine",
+                        "type": "object"
+                      }
+                    },
+                    "discriminator": {
+                      "mapping": {
+                        "bar-chart": "#/$defs/BarChartLine",
+                        "chat-response": "#/$defs/ChatResponseLine",
+                        "done": "#/$defs/DoneLine",
+                        "feedback": "#/$defs/FeedbackLine",
+                        "line-chart": "#/$defs/LineChartLine",
+                        "ordered-list": "#/$defs/OrderedListLine",
+                        "pie-chart": "#/$defs/PieChartLine",
+                        "smart-loading": "#/$defs/SmartLoadingLine",
+                        "suggested-user-intents": "#/$defs/SuggestedIntentsLine",
+                        "table": "#/$defs/TableLine",
+                        "transaction-list": "#/$defs/TransactionListLine",
+                        "try-again-error": "#/$defs/TryAgainErrorLine",
+                        "unordered-list": "#/$defs/UnorderedListLine",
+                        "unsupported": "#/$defs/UnsupportedLine"
+                      },
+                      "propertyName": "component"
+                    },
+                    "oneOf": [
+                      {
+                        "$ref": "#/$defs/ChatResponseLine"
+                      },
+                      {
+                        "$ref": "#/$defs/TableLine"
+                      },
+                      {
+                        "$ref": "#/$defs/OrderedListLine"
+                      },
+                      {
+                        "$ref": "#/$defs/UnorderedListLine"
+                      },
+                      {
+                        "$ref": "#/$defs/LineChartLine"
+                      },
+                      {
+                        "$ref": "#/$defs/BarChartLine"
+                      },
+                      {
+                        "$ref": "#/$defs/PieChartLine"
+                      },
+                      {
+                        "$ref": "#/$defs/SuggestedIntentsLine"
+                      },
+                      {
+                        "$ref": "#/$defs/TransactionListLine"
+                      },
+                      {
+                        "$ref": "#/$defs/SmartLoadingLine"
+                      },
+                      {
+                        "$ref": "#/$defs/TryAgainErrorLine"
+                      },
+                      {
+                        "$ref": "#/$defs/FeedbackLine"
+                      },
+                      {
+                        "$ref": "#/$defs/DoneLine"
+                      },
+                      {
+                        "$ref": "#/$defs/UnsupportedLine"
+                      }
+                    ]
+                  }
+                },
+                "example": "{\"component\":\"smart-loading\",\"body\":\"Adding up category spend\"}\n{\"component\":\"chat-response\",\"body\":\"You spent $412.80 on Dining in June.\"}\n{\"component\":\"bar-chart\",\"valueTitle\":\"Spend ($)\",\"labels\":[\"Dining\"],\"data\":[{\"label\":\"May\",\"values\":[349.1]},{\"label\":\"Jun\",\"values\":[412.8]}]}\n{\"component\":\"suggested-user-intents\",\"intents\":[\"Compare to May\"]}\n{\"component\":\"feedback\"}\n{\"component\":\"done\",\"telemetry\":{\"ttft_ms\":2463.0,\"ttfc_ms\":3911.5,\"components\":3,\"tool_calls\":1}}\n"
+              }
+            }
+          },
+          "503": {
+            "description": "Dataset not enriched yet, or no model credentials configured."
+          },
+          "404": {
+            "description": "The greeting is disabled by configuration."
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "ChatRequest": {
+        "properties": {
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "default": ""
+          },
+          "session_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Session Id"
+          }
+        },
+        "type": "object",
+        "title": "ChatRequest"
+      },
+      "CoverageSummary": {
+        "properties": {
+          "first_date": {
+            "type": "string",
+            "title": "First Date"
+          },
+          "latest_date": {
+            "type": "string",
+            "title": "Latest Date"
+          },
+          "treat_as_today": {
+            "type": "string",
+            "title": "Treat As Today"
+          },
+          "months": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Months"
+          },
+          "current_month": {
+            "type": "string",
+            "title": "Current Month"
+          },
+          "last_complete_month": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Complete Month"
+          },
+          "partial_month": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Partial Month"
+          },
+          "transaction_count": {
+            "type": "integer",
+            "title": "Transaction Count"
+          },
+          "categories_present": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Categories Present"
+          },
+          "merchants_present": {
+            "type": "integer",
+            "title": "Merchants Present"
+          },
+          "total_spend": {
+            "type": "number",
+            "title": "Total Spend"
+          },
+          "note": {
+            "type": "string",
+            "title": "Note"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "first_date",
+          "latest_date",
+          "treat_as_today",
+          "months",
+          "current_month",
+          "transaction_count",
+          "categories_present",
+          "merchants_present",
+          "total_spend",
+          "note"
+        ],
+        "title": "CoverageSummary",
+        "description": "What the dataset contains \u2014 and, in `note`, what it does not."
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "HealthResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "const": "ok",
+            "title": "Status"
+          },
+          "model": {
+            "type": "string",
+            "title": "Model",
+            "description": "Resolved Anthropic model id for the chat agent."
+          },
+          "effort": {
+            "type": "string",
+            "title": "Effort",
+            "description": "Reasoning effort in force for chat."
+          },
+          "prompt_version": {
+            "type": "string",
+            "title": "Prompt Version",
+            "description": "Stamped into every audit record."
+          },
+          "api_key_configured": {
+            "type": "boolean",
+            "title": "Api Key Configured"
+          },
+          "greeting_enabled": {
+            "type": "boolean",
+            "title": "Greeting Enabled"
+          },
+          "tools": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Tools",
+            "description": "Tool names the agent may call."
+          },
+          "data": {
+            "$ref": "#/components/schemas/CoverageSummary"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "model",
+          "effort",
+          "prompt_version",
+          "api_key_configured",
+          "greeting_enabled",
+          "tools",
+          "data"
+        ],
+        "title": "HealthResponse"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      }
+    }
+  },
+  "tags": [
+    {
+      "name": "agent",
+      "description": "Streaming conversational endpoints."
+    },
+    {
+      "name": "operations",
+      "description": "Readiness and dataset introspection."
+    }
+  ]
+}

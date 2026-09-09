@@ -1,0 +1,12 @@
+.env
+__pycache__/
+*.pyc
+.venv/
+venv/
+.DS_Store
+.pytest_cache/
+
+# audit trail is generated at runtime
+data/audit_log.jsonl
+.ruff_cache/
+eval/out/

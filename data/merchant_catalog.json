@@ -1,0 +1,1952 @@
+{
+  "ADOBE *CREATIVECLD": {
+    "category": "Subscriptions",
+    "city": null,
+    "confidence": 0.95,
+    "direction": "debit",
+    "is_recurring": true,
+    "logo_domain": "adobe.com",
+    "merchant": "Adobe Creative Cloud",
+    "region": null
+  },
+  "ALDI # WINNIPEG MB": {
+    "category": "Groceries",
+    "city": "Winnipeg",
+    "confidence": 0.9,
+    "direction": "debit",
+    "is_recurring": false,
+    "logo_domain": "aldi.us",
+    "merchant": "Aldi",
+    "region": "MB"
+  },
+  "AMAZON PRIME*#": {
+    "category": "Subscriptions",
+    "city": null,
+    "confidence": 0.92,
+    "direction": "debit",
+    "is_recurring": true,
+    "logo_domain": "amazon.com",
+    "merchant": "Amazon Prime",
+    "region": null
+  },
+  "AMC THEATRES AUSTIN TX": {
+    "category": "Entertainment",
+    "city": "Austin",
+    "confidence": 0.9,
+    "direction": "debit",
+    "is_recurring": false,
+    "logo_domain": "amctheatres.com",
+    "merchant": "AMC Theatres",
+    "region": "TX"
+  },
+  "AMC THEATRES EDMONTON AB": {
+    "category": "Entertainment",
+    "city": "Edmonton",
+    "confidence": 0.9,
+    "direction": "debit",
+    "is_recurring": false,
+    "logo_domain": "amctheatres.com",
+    "merchant": "AMC Theatres",
+    "region": "AB"
+  },
+  "AMC THEATRES HOUSTON TX": {
+    "category": "Entertainment",
+    "city": "Houston",
+    "confidence": 0.9,
+    "direction": "debit",
+    "is_recurring": false,
+    "logo_domain": "amctheatres.com",
+    "merchant": "AMC Theatres",
+    "region": "TX"
+  },
+  "AMC THEATRES PHOENIX AZ": {
+    "category": "Entertainment",
+    "city": "Phoenix",
+    "confidence": 0.9,
+    "direction": "debit",
+    "is_recurring": false,
+    "logo_domain": "amctheatres.com",
+    "merchant": "AMC Theatres",
+    "region": "AZ"
+  },
+  "AMERICAN RED CROSS #": {
+    "category": "Charity & Donations",
+    "city": null,
+    "confidence": 0.85,
+    "direction": "debit",
+    "is_recurring": false,
+    "logo_domain": "redcross.org",
+    "merchant": "American Red Cross",
+    "region": null
+  },
+  "AMTRAK #": {
+    "category": "Travel",
+    "city": null,
+    "confidence": 0.85,
+    "direction": "debit",
+    "is_recurring": false,
+    "logo_domain": "amtrak.com",
+    "merchant": "Amtrak",
+    "region": null
+  },
+  "AMZN MKTP US*#": {
+    "category": "Shopping",
+    "city": null,
+    "confidence": 0.85,
+    "direction": "debit",
+    "is_recurring": false,
+    "logo_domain": "amazon.com",
+    "merchant": "Amazon",
+    "region": null
+  },
+  "ANNUAL CARD FEE": {
+    "category": "Fees & Charges",
+    "city": null,
+    "confidence": 0.9,
+    "direction": "debit",
+    "is_recurring": false,
+    "logo_domain": null,
+    "merchant": "Annual Card Fee",
+    "region": null
+  },
+  "APPLE CASH SEND #": {
+    "category": "Transfers",
+    "city": null,
+    "confidence": 0.75,
+    "direction": "debit",
+    "is_recurring": false,
+    "logo_domain": "apple.com",
+    "merchant": "Apple Cash Transfer",
+    "region": null
+  },
+  "APPLE.COM/BILL ICLOUD": {
+    "category": "Subscriptions",
+    "city": null,
+    "confidence": 0.93,
+    "direction": "debit",
+    "is_recurring": true,
+    "logo_domain": "apple.com",
+    "merchant": "iCloud",
+    "region": null
+  },
+  "AT&T *PAYMENT #": {
+    "category": "Utilities & Telecom",
+    "city": null,
+    "confidence": 0.9,
+    "direction": "debit",
+    "is_recurring": true,
+    "logo_domain": "att.com",
+    "merchant": "AT&T",
+    "region": null
+  },
+  "ATM WITHDRAWAL FEE #": {
+    "category": "Fees & Charges",
+    "city": null,
+    "confidence": 0.9,
+    "direction": "debit",
+    "is_recurring": false,
+    "logo_domain": null,
+    "merchant": "ATM Withdrawal Fee",
+    "region": null
+  },
+  "AUDIBLE*#": {
+    "category": "Subscriptions",
+    "city": null,
+    "confidence": 0.9,
+    "direction": "debit",
+    "is_recurring": true,
+    "logo_domain": "audible.com",
+    "merchant": "Audible",
+    "region": null
+  },
+  "BELL CANADA #": {
+    "category": "Utilities & Telecom",
+    "city": null,
+    "confidence": 0.9,
+    "direction": "debit",
+    "is_recurring": true,
+    "logo_domain": "bell.ca",
+    "merchant": "Bell Canada",
+    "region": null
+  },
+  "BEST BUY # AUSTIN TX": {
+    "category": "Shopping",
+    "city": "Austin",
+    "confidence": 0.9,
+    "direction": "debit",
+    "is_recurring": false,
+    "logo_domain": "bestbuy.com",
+    "merchant": "Best Buy",
+    "region": "TX"
+  },
+  "BEST BUY # HOUSTON TX": {
+    "category": "Shopping",
+    "city": "Houston",
+    "confidence": 0.9,
+    "direction": "debit",
+    "is_recurring": false,
+    "logo_domain": "bestbuy.com",
+    "merchant": "Best Buy",
+    "region": "TX"
+  },
+  "CANADIAN TIRE # CALGARY AB": {
+    "category": "Shopping",
+    "city": "Calgary",
+    "confidence": 0.85,
+    "direction": "debit",
+    "is_recurring": false,
+    "logo_domain": "canadiantire.ca",
+    "merchant": "Canadian Tire",
+    "region": "AB"
+  },
+  "CANADIAN TIRE # WINNIPEG MB": {
+    "category": "Shopping",
+    "city": "Winnipeg",
+    "confidence": 0.85,
+    "direction": "debit",
+    "is_recurring": false,
+    "logo_domain": "canadiantire.ca",
+    "merchant": "Canadian Tire",
+    "region": "MB"
+  },
+  "CASH APP*#": {
+    "category": "Transfers",
+    "city": null,
+    "confidence": 0.75,
+    "direction": "debit",
+    "is_recurring": false,
+    "logo_domain": "cash.app",
+    "merchant": "Cash App Transfer",
+    "region": null
+  },
+  "CHATGPT SUBSCRIPTION #": {
+    "category": "Subscriptions",
+    "city": null,
+    "confidence": 0.9,
+    "direction": "debit",
+    "is_recurring": true,
+    "logo_domain": "openai.com",
+    "merchant": "ChatGPT",
+    "region": null
+  },
+  "CHEVRON # ATLANTA GA": {
+    "category": "Fuel",
+    "city": "Atlanta",
+    "confidence": 0.9,
+    "direction": "debit",
+    "is_recurring": false,
+    "logo_domain": "chevron.com",
+    "merchant": "Chevron",
+    "region": "GA"
+  },
+  "CHICK-FIL-A WINNIPEG MB": {
+    "category": "Dining",
+    "city": "Winnipeg",
+    "confidence": 0.9,
+    "direction": "debit",
+    "is_recurring": false,
+    "logo_domain": "chick-fil-a.com",
+    "merchant": "Chick-fil-A",
+    "region": "MB"
+  },
+  "CHIPOTLE # MISSISSAUGA ON": {
+    "category": "Dining",
+    "city": "Mississauga",
+    "confidence": 0.92,
+    "direction": "debit",
+    "is_recurring": false,
+    "logo_domain": "chipotle.com",
+    "merchant": "Chipotle Mexican Grill",
+    "region": "ON"
+  },
+  "CINEPLEX # HOUSTON TX": {
+    "category": "Entertainment",
+    "city": "Houston",
+    "confidence": 0.85,
+    "direction": "debit",
+    "is_recurring": false,
+    "logo_domain": "cineplex.com",
+    "merchant": "Cineplex",
+    "region": "TX"
+  },
+  "CON EDISON UTILITY #": {
+    "category": "Utilities & Telecom",
+    "city": null,
+    "confidence": 0.6,
+    "direction": "debit",
+    "is_recurring": true,
+    "logo_domain": "coned.com",
+    "merchant": "Con Edison",
+    "region": null
+  },
+  "COSTCO WHSE CHICAGO IL": {
+    "category": "Groceries",
+    "city": "Chicago",
+    "confidence": 0.9,
+    "direction": "debit",
+    "is_recurring": false,
+    "logo_domain": "costco.com",
+    "merchant": "Costco Wholesale",
+    "region": "IL"
+  },
+  "COSTCO WHSE EDMONTON AB": {
+    "category": "Groceries",
+    "city": "Edmonton",
+    "confidence": 0.9,
+    "direction": "debit",
+    "is_recurring": false,
+    "logo_domain": "costco.com",
+    "merchant": "Costco Wholesale",
+    "region": "AB"
+  },
+  "COSTCO WHSE MISSISSAUGA ON": {
+    "category": "Groceries",
+    "city": "Mississauga",
+    "confidence": 0.9,
+    "direction": "debit",
+    "is_recurring": false,
+    "logo_domain": "costco.com",
+    "merchant": "Costco Wholesale",
+    "region": "ON"
+  },
+  "COSTCO WHSE NEW YORK NY": {
+    "category": "Groceries",
+    "city": "New York",
+    "confidence": 0.9,
+    "direction": "debit",
+    "is_recurring": false,
+    "logo_domain": "costco.com",
+    "merchant": "Costco Wholesale",
+    "region": "NY"
+  },
+  "COSTCO WHSE VANCOUVER BC": {
+    "category": "Groceries",
+    "city": "Vancouver",
+    "confidence": 0.9,
+    "direction": "debit",
+    "is_recurring": false,
+    "logo_domain": "costco.com",
+    "merchant": "Costco Wholesale",
+    "region": "BC"
+  },
+  "CVS/PHARMACY # CHICAGO IL": {
+    "category": "Health & Pharmacy",
+    "city": "Chicago",
+    "confidence": 0.9,
+    "direction": "debit",
+    "is_recurring": false,
+    "logo_domain": "cvs.com",
+    "merchant": "CVS Pharmacy",
+    "region": "IL"
+  },
+  "CVS/PHARMACY # PHOENIX AZ": {
+    "category": "Health & Pharmacy",
+    "city": "Phoenix",
+    "confidence": 0.9,
+    "direction": "debit",
+    "is_recurring": false,
+    "logo_domain": "cvs.com",
+    "merchant": "CVS Pharmacy",
+    "region": "AZ"
+  },
+  "DAVE & BUSTERS CHICAGO IL": {
+    "category": "Entertainment",
+    "city": "Chicago",
+    "confidence": 0.88,
+    "direction": "debit",
+    "is_recurring": false,
+    "logo_domain": "daveandbusters.com",
+    "merchant": "Dave & Buster's",
+    "region": "IL"
+  },
+  "DAVE & BUSTERS MIAMI FL": {
+    "category": "Entertainment",
+    "city": "Miami",
+    "confidence": 0.88,
+    "direction": "debit",
+    "is_recurring": false,
+    "logo_domain": "daveandbusters.com",
+    "merchant": "Dave & Buster's",
+    "region": "FL"
+  },
+  "DAVE & BUSTERS MISSISSAUGA ON": {
+    "category": "Entertainment",
+    "city": "Mississauga",
+    "confidence": 0.88,
+    "direction": "debit",
+    "is_recurring": false,
+    "logo_domain": "daveandbusters.com",
+    "merchant": "Dave & Buster's",
+    "region": "ON"
+  },
+  "DAVE & BUSTERS PHOENIX AZ": {
+    "category": "Entertainment",
+    "city": "Phoenix",
+    "confidence": 0.88,
+    "direction": "debit",
+    "is_recurring": false,
+    "logo_domain": "daveandbusters.com",
+    "merchant": "Dave & Buster's",
+    "region": "AZ"
+  },
+  "DISNEY PLUS #": {
+    "category": "Subscriptions",
+    "city": null,
+    "confidence": 0.92,
+    "direction": "debit",
+    "is_recurring": true,
+    "logo_domain": "disneyplus.com",
+    "merchant": "Disney+",
+    "region": null
+  },
+  "DOORDASH*#": {
+    "category": "Dining",
+    "city": null,
+    "confidence": 0.8,
+    "direction": "debit",
+    "is_recurring": false,
+    "logo_domain": "doordash.com",
+    "merchant": "DoorDash",
+    "region": null
+  },
+  "DUNKIN ## ATLANTA GA": {
+    "category": "Dining",
+    "city": "Atlanta",
+    "confidence": 0.87,
+    "direction": "debit",
+    "is_recurring": false,
+    "logo_domain": "dunkindonuts.com",
+    "merchant": "Dunkin'",
+    "region": "GA"
+  },
+  "DUNKIN ## BOSTON MA": {
+    "category": "Dining",
+    "city": "Boston",
+    "confidence": 0.87,
+    "direction": "debit",
+    "is_recurring": false,
+    "logo_domain": "dunkindonuts.com",
+    "merchant": "Dunkin'",
+    "region": "MA"
+  },
+  "DUNKIN ## VANCOUVER BC": {
+    "category": "Dining",
+    "city": "Vancouver",
+    "confidence": 0.87,
+    "direction": "debit",
+    "is_recurring": false,
+    "logo_domain": "dunkindonuts.com",
+    "merchant": "Dunkin'",
+    "region": "BC"
+  },
+  "ESSO # ATLANTA GA": {
+    "category": "Fuel",
+    "city": "Atlanta",
+    "confidence": 0.85,
+    "direction": "debit",
+    "is_recurring": false,
+    "logo_domain": "esso.com",
+    "merchant": "Esso",
+    "region": "GA"
+  },
+  "ESSO # LOS ANGELES CA": {
+    "category": "Fuel",
+    "city": "Los Angeles",
+    "confidence": 0.85,
+    "direction": "debit",
+    "is_recurring": false,
+    "logo_domain": "esso.com",
+    "merchant": "Esso",
+    "region": "CA"
+  },
+  "ESSO # PHOENIX AZ": {
+    "category": "Fuel",
+    "city": "Phoenix",
+    "confidence": 0.85,
+    "direction": "debit",
+    "is_recurring": false,
+    "logo_domain": "esso.com",
+    "merchant": "Esso",
+    "region": "AZ"
+  },
+  "EXXONMOBIL AUSTIN TX": {
+    "category": "Fuel",
+    "city": "Austin",
+    "confidence": 0.88,
+    "direction": "debit",
+    "is_recurring": false,
+    "logo_domain": "exxonmobil.com",
+    "merchant": "ExxonMobil",
+    "region": "TX"
+  },
+  "EXXONMOBIL LOS ANGELES CA": {
+    "category": "Fuel",
+    "city": "Los Angeles",
+    "confidence": 0.88,
+    "direction": "debit",
+    "is_recurring": false,
+    "logo_domain": "exxonmobil.com",
+    "merchant": "ExxonMobil",
+    "region": "CA"
+  },
+  "EXXONMOBIL SAN FRANCISCO CA": {
+    "category": "Fuel",
+    "city": "San Francisco",
+    "confidence": 0.88,
+    "direction": "debit",
+    "is_recurring": false,
+    "logo_domain": "exxonmobil.com",
+    "merchant": "ExxonMobil",
+    "region": "CA"
+  },
+  "FOREIGN TRANSACTION FEE #": {
+    "category": "Fees & Charges",
+    "city": null,
+    "confidence": 0.9,
+    "direction": "debit",
+    "is_recurring": false,
+    "logo_domain": null,
+    "merchant": "Foreign Transaction Fee",
+    "region": null
+  },
+  "GEICO INSURANCE #": {
+    "category": "Insurance",
+    "city": null,
+    "confidence": 0.95,
+    "direction": "debit",
+    "is_recurring": true,
+    "logo_domain": "geico.com",
+    "merchant": "GEICO",
+    "region": null
+  },
+  "GOODRX #": {
+    "category": "Health & Pharmacy",
+    "city": null,
+    "confidence": 0.8,
+    "direction": "debit",
+    "is_recurring": false,
+    "logo_domain": "goodrx.com",
+    "merchant": "GoodRx",
+    "region": null
+  },
+  "GOOGLE *PLAY #": {
+    "category": "Subscriptions",
+    "city": null,
+    "confidence": 0.7,
+    "direction": "debit",
+    "is_recurring": true,
+    "logo_domain": "play.google.com",
+    "merchant": "Google Play",
+    "region": null
+  },
+  "H&M # CALGARY AB": {
+    "category": "Shopping",
+    "city": "Calgary",
+    "confidence": 0.9,
+    "direction": "debit",
+    "is_recurring": false,
+    "logo_domain": "hm.com",
+    "merchant": "H&M",
+    "region": "AB"
+  },
+  "H&M # CHICAGO IL": {
+    "category": "Shopping",
+    "city": "Chicago",
+    "confidence": 0.9,
+    "direction": "debit",
+    "is_recurring": false,
+    "logo_domain": "hm.com",
+    "merchant": "H&M",
+    "region": "IL"
+  },
+  "H&M # TORONTO ON": {
+    "category": "Shopping",
+    "city": "Toronto",
+    "confidence": 0.9,
+    "direction": "debit",
+    "is_recurring": false,
+    "logo_domain": "hm.com",
+    "merchant": "H&M",
+    "region": "ON"
+  },
+  "HBO MAX #": {
+    "category": "Subscriptions",
+    "city": null,
+    "confidence": 0.95,
+    "direction": "debit",
+    "is_recurring": true,
+    "logo_domain": "hbomax.com",
+    "merchant": "HBO Max",
+    "region": null
+  },
+  "HULU #": {
+    "category": "Subscriptions",
+    "city": null,
+    "confidence": 0.95,
+    "direction": "debit",
+    "is_recurring": true,
+    "logo_domain": "hulu.com",
+    "merchant": "Hulu",
+    "region": null
+  },
+  "IKEA EDMONTON AB": {
+    "category": "Home",
+    "city": "Edmonton",
+    "confidence": 0.85,
+    "direction": "debit",
+    "is_recurring": false,
+    "logo_domain": "ikea.com",
+    "merchant": "IKEA",
+    "region": "AB"
+  },
+  "IKEA MISSISSAUGA ON": {
+    "category": "Home",
+    "city": "Mississauga",
+    "confidence": 0.85,
+    "direction": "debit",
+    "is_recurring": false,
+    "logo_domain": "ikea.com",
+    "merchant": "IKEA",
+    "region": "ON"
+  },
+  "INTERAC E-TRANSFER #": {
+    "category": "Transfers",
+    "city": null,
+    "confidence": 0.5,
+    "direction": "credit",
+    "is_recurring": false,
+    "logo_domain": null,
+    "merchant": "Interac e-Transfer",
+    "region": null
+  },
+  "IRS USATAXPYMT #": {
+    "category": "Taxes & Government",
+    "city": null,
+    "confidence": 0.9,
+    "direction": "debit",
+    "is_recurring": false,
+    "logo_domain": "irs.gov",
+    "merchant": "IRS Tax Payment",
+    "region": null
+  },
+  "KAISER PERMANENTE RX #": {
+    "category": "Health & Pharmacy",
+    "city": null,
+    "confidence": 0.85,
+    "direction": "debit",
+    "is_recurring": false,
+    "logo_domain": "kp.org",
+    "merchant": "Kaiser Permanente Pharmacy",
+    "region": null
+  },
+  "KROGER ## HOUSTON TX": {
+    "category": "Groceries",
+    "city": "Houston",
+    "confidence": 0.9,
+    "direction": "debit",
+    "is_recurring": false,
+    "logo_domain": "kroger.com",
+    "merchant": "Kroger",
+    "region": "TX"
+  },
+  "KROGER ## NEW YORK NY": {
+    "category": "Groceries",
+    "city": "New York",
+    "confidence": 0.9,
+    "direction": "debit",
+    "is_recurring": false,
+    "logo_domain": "kroger.com",
+    "merchant": "Kroger",
+    "region": "NY"
+  },
+  "LATE PAYMENT FEE": {
+    "category": "Fees & Charges",
+    "city": null,
+    "confidence": 0.9,
+    "direction": "debit",
+    "is_recurring": false,
+    "logo_domain": null,
+    "merchant": "Late Payment Fee",
+    "region": null
+  },
+  "LIVE NATION #": {
+    "category": "Entertainment",
+    "city": null,
+    "confidence": 0.85,
+    "direction": "debit",
+    "is_recurring": false,
+    "logo_domain": "livenation.com",
+    "merchant": "Live Nation",
+    "region": null
+  },
+  "LOBLAWS # EDMONTON AB": {
+    "category": "Groceries",
+    "city": "Edmonton",
+    "confidence": 0.9,
+    "direction": "debit",
+    "is_recurring": false,
+    "logo_domain": "loblaws.ca",
+    "merchant": "Loblaws",
+    "region": "AB"
+  },
+  "LOWES ## EDMONTON AB": {
+    "category": "Home",
+    "city": "Edmonton",
+    "confidence": 0.9,
+    "direction": "debit",
+    "is_recurring": false,
+    "logo_domain": "lowes.com",
+    "merchant": "Lowe's",
+    "region": "AB"
+  },
+  "LOWES ## HOUSTON TX": {
+    "category": "Home",
+    "city": "Houston",
+    "confidence": 0.9,
+    "direction": "debit",
+    "is_recurring": false,
+    "logo_domain": "lowes.com",
+    "merchant": "Lowe's",
+    "region": "TX"
+  },
+  "LYFT *RIDE #": {
+    "category": "Transport",
+    "city": null,
+    "confidence": 0.9,
+    "direction": "debit",
+    "is_recurring": false,
+    "logo_domain": "lyft.com",
+    "merchant": "Lyft",
+    "region": null
+  },
+  "MACYS CALGARY AB": {
+    "category": "Shopping",
+    "city": "Calgary",
+    "confidence": 0.85,
+    "direction": "debit",
+    "is_recurring": false,
+    "logo_domain": "macys.com",
+    "merchant": "Macy's",
+    "region": "AB"
+  },
+  "MCDONALDS F# BOSTON MA": {
+    "category": "Dining",
+    "city": "Boston",
+    "confidence": 0.9,
+    "direction": "debit",
+    "is_recurring": false,
+    "logo_domain": "mcdonalds.com",
+    "merchant": "McDonald's",
+    "region": "MA"
+  },
+  "MCDONALDS F# MIAMI FL": {
+    "category": "Dining",
+    "city": "Miami",
+    "confidence": 0.9,
+    "direction": "debit",
+    "is_recurring": false,
+    "logo_domain": "mcdonalds.com",
+    "merchant": "McDonald's",
+    "region": "FL"
+  },
+  "MCDONALDS F# VANCOUVER BC": {
+    "category": "Dining",
+    "city": "Vancouver",
+    "confidence": 0.94,
+    "direction": "debit",
+    "is_recurring": false,
+    "logo_domain": "mcdonalds.com",
+    "merchant": "McDonald's",
+    "region": "BC"
+  },
+  "METRO # ATLANTA GA": {
+    "category": "Groceries",
+    "city": "Atlanta",
+    "confidence": 0.45,
+    "direction": "debit",
+    "is_recurring": true,
+    "logo_domain": "metrobyt-mobile.com",
+    "merchant": "Metro",
+    "region": "GA"
+  },
+  "METRO # EDMONTON AB": {
+    "category": "Groceries",
+    "city": "Edmonton",
+    "confidence": 0.72,
+    "direction": "debit",
+    "is_recurring": false,
+    "logo_domain": "metro.ca",
+    "merchant": "Metro",
+    "region": "AB"
+  },
+  "METRO # MONTREAL QC": {
+    "category": "Groceries",
+    "city": "Montreal",
+    "confidence": 0.75,
+    "direction": "debit",
+    "is_recurring": false,
+    "logo_domain": "metro.ca",
+    "merchant": "Metro",
+    "region": "QC"
+  },
+  "METRO # OTTAWA ON": {
+    "category": "Groceries",
+    "city": "Ottawa",
+    "confidence": 0.75,
+    "direction": "debit",
+    "is_recurring": false,
+    "logo_domain": "metro.ca",
+    "merchant": "Metro",
+    "region": "ON"
+  },
+  "MICROSOFT*M# #": {
+    "category": "Subscriptions",
+    "city": null,
+    "confidence": 0.8,
+    "direction": "debit",
+    "is_recurring": true,
+    "logo_domain": "microsoft.com",
+    "merchant": "Microsoft 365",
+    "region": null
+  },
+  "MONTHLY MAINTENANCE FEE": {
+    "category": "Fees & Charges",
+    "city": null,
+    "confidence": 0.9,
+    "direction": "debit",
+    "is_recurring": false,
+    "logo_domain": null,
+    "merchant": "Monthly Maintenance Fee",
+    "region": null
+  },
+  "MTA NYC TRANSIT #": {
+    "category": "Transport",
+    "city": "New York",
+    "confidence": 0.8,
+    "direction": "debit",
+    "is_recurring": false,
+    "logo_domain": "new.mta.info",
+    "merchant": "MTA NYC Transit",
+    "region": "NY"
+  },
+  "NATIONAL GRID GAS #": {
+    "category": "Utilities & Telecom",
+    "city": null,
+    "confidence": 0.85,
+    "direction": "debit",
+    "is_recurring": true,
+    "logo_domain": "nationalgridus.com",
+    "merchant": "National Grid",
+    "region": null
+  },
+  "NETFLIX.COM #": {
+    "category": "Subscriptions",
+    "city": null,
+    "confidence": 0.97,
+    "direction": "debit",
+    "is_recurring": true,
+    "logo_domain": "netflix.com",
+    "merchant": "Netflix",
+    "region": null
+  },
+  "NIKE.COM #": {
+    "category": "Shopping",
+    "city": null,
+    "confidence": 0.9,
+    "direction": "debit",
+    "is_recurring": false,
+    "logo_domain": "nike.com",
+    "merchant": "Nike",
+    "region": null
+  },
+  "NINTENDO #": {
+    "category": "Entertainment",
+    "city": null,
+    "confidence": 0.75,
+    "direction": "debit",
+    "is_recurring": false,
+    "logo_domain": "nintendo.com",
+    "merchant": "Nintendo eShop",
+    "region": null
+  },
+  "NSF FEE": {
+    "category": "Fees & Charges",
+    "city": null,
+    "confidence": 0.92,
+    "direction": "debit",
+    "is_recurring": false,
+    "logo_domain": null,
+    "merchant": "Non-Sufficient Funds Fee",
+    "region": null
+  },
+  "OVERDRAFT FEE": {
+    "category": "Fees & Charges",
+    "city": null,
+    "confidence": 0.93,
+    "direction": "debit",
+    "is_recurring": false,
+    "logo_domain": null,
+    "merchant": "Overdraft Fee",
+    "region": null
+  },
+  "PAPER STATEMENT FEE": {
+    "category": "Fees & Charges",
+    "city": null,
+    "confidence": 0.9,
+    "direction": "debit",
+    "is_recurring": false,
+    "logo_domain": null,
+    "merchant": "Paper Statement Fee",
+    "region": null
+  },
+  "PARAMOUNT+ #": {
+    "category": "Subscriptions",
+    "city": null,
+    "confidence": 0.93,
+    "direction": "debit",
+    "is_recurring": true,
+    "logo_domain": "paramountplus.com",
+    "merchant": "Paramount+",
+    "region": null
+  },
+  "PARKING METER NEW YORK NY": {
+    "category": "Transport",
+    "city": "New York",
+    "confidence": 0.7,
+    "direction": "debit",
+    "is_recurring": false,
+    "logo_domain": null,
+    "merchant": "Parking Meter",
+    "region": "NY"
+  },
+  "PARKING METER SAN FRANCISCO CA": {
+    "category": "Transport",
+    "city": "San Francisco",
+    "confidence": 0.7,
+    "direction": "debit",
+    "is_recurring": false,
+    "logo_domain": null,
+    "merchant": "Parking Meter",
+    "region": "CA"
+  },
+  "PAYPAL *TRANSFER #": {
+    "category": "Transfers",
+    "city": null,
+    "confidence": 0.5,
+    "direction": "credit",
+    "is_recurring": false,
+    "logo_domain": "paypal.com",
+    "merchant": "PayPal Transfer",
+    "region": null
+  },
+  "PAYROLL DEPOSIT #": {
+    "category": "Income",
+    "city": null,
+    "confidence": 0.85,
+    "direction": "credit",
+    "is_recurring": false,
+    "logo_domain": null,
+    "merchant": "Payroll Deposit",
+    "region": null
+  },
+  "PETRO-CANADA AUSTIN TX": {
+    "category": "Fuel",
+    "city": "Austin",
+    "confidence": 0.4,
+    "direction": "debit",
+    "is_recurring": false,
+    "logo_domain": "petro-canada.ca",
+    "merchant": "Petro-Canada",
+    "region": "TX"
+  },
+  "PETRO-CANADA SAN FRANCISCO CA": {
+    "category": "Fuel",
+    "city": "San Francisco",
+    "confidence": 0.4,
+    "direction": "debit",
+    "is_recurring": false,
+    "logo_domain": "petro-canada.ca",
+    "merchant": "Petro-Canada",
+    "region": "CA"
+  },
+  "PHARMACA ATLANTA GA": {
+    "category": "Health & Pharmacy",
+    "city": "Atlanta",
+    "confidence": 0.75,
+    "direction": "debit",
+    "is_recurring": false,
+    "logo_domain": "pharmaca.com",
+    "merchant": "Pharmaca",
+    "region": "GA"
+  },
+  "PHARMACA VANCOUVER BC": {
+    "category": "Health & Pharmacy",
+    "city": "Vancouver",
+    "confidence": 0.7,
+    "direction": "debit",
+    "is_recurring": false,
+    "logo_domain": "pharmaca.com",
+    "merchant": "Pharmaca",
+    "region": "BC"
+  },
+  "PLAYSTATION NETWORK #": {
+    "category": "Entertainment",
+    "city": null,
+    "confidence": 0.78,
+    "direction": "debit",
+    "is_recurring": true,
+    "logo_domain": "playstation.com",
+    "merchant": "PlayStation Network",
+    "region": null
+  },
+  "PUBLIX # CALGARY AB": {
+    "category": "Groceries",
+    "city": "Calgary",
+    "confidence": 0.85,
+    "direction": "debit",
+    "is_recurring": false,
+    "logo_domain": "publix.com",
+    "merchant": "Publix",
+    "region": "AB"
+  },
+  "PUBLIX # DENVER CO": {
+    "category": "Groceries",
+    "city": "Denver",
+    "confidence": 0.9,
+    "direction": "debit",
+    "is_recurring": false,
+    "logo_domain": "publix.com",
+    "merchant": "Publix",
+    "region": "CO"
+  },
+  "PUBLIX # MIAMI FL": {
+    "category": "Groceries",
+    "city": "Miami",
+    "confidence": 0.95,
+    "direction": "debit",
+    "is_recurring": false,
+    "logo_domain": "publix.com",
+    "merchant": "Publix",
+    "region": "FL"
+  },
+  "PUBLIX # NEW YORK NY": {
+    "category": "Groceries",
+    "city": "New York",
+    "confidence": 0.85,
+    "direction": "debit",
+    "is_recurring": false,
+    "logo_domain": "publix.com",
+    "merchant": "Publix",
+    "region": "NY"
+  },
+  "PUBLIX # PHOENIX AZ": {
+    "category": "Groceries",
+    "city": "Phoenix",
+    "confidence": 0.85,
+    "direction": "debit",
+    "is_recurring": false,
+    "logo_domain": "publix.com",
+    "merchant": "Publix",
+    "region": "AZ"
+  },
+  "REGAL CINEMAS LOS ANGELES CA": {
+    "category": "Entertainment",
+    "city": "Los Angeles",
+    "confidence": 0.92,
+    "direction": "debit",
+    "is_recurring": false,
+    "logo_domain": "regmovies.com",
+    "merchant": "Regal Cinemas",
+    "region": "CA"
+  },
+  "REGAL CINEMAS OTTAWA ON": {
+    "category": "Entertainment",
+    "city": "Ottawa",
+    "confidence": 0.8,
+    "direction": "debit",
+    "is_recurring": false,
+    "logo_domain": "regmovies.com",
+    "merchant": "Regal Cinemas",
+    "region": "ON"
+  },
+  "REGAL CINEMAS PHOENIX AZ": {
+    "category": "Entertainment",
+    "city": "Phoenix",
+    "confidence": 0.92,
+    "direction": "debit",
+    "is_recurring": false,
+    "logo_domain": "regmovies.com",
+    "merchant": "Regal Cinemas",
+    "region": "AZ"
+  },
+  "REGAL CINEMAS SAN FRANCISCO CA": {
+    "category": "Entertainment",
+    "city": "San Francisco",
+    "confidence": 0.92,
+    "direction": "debit",
+    "is_recurring": false,
+    "logo_domain": "regmovies.com",
+    "merchant": "Regal Cinemas",
+    "region": "CA"
+  },
+  "REXALL # EDMONTON AB": {
+    "category": "Health & Pharmacy",
+    "city": "Edmonton",
+    "confidence": 0.85,
+    "direction": "debit",
+    "is_recurring": false,
+    "logo_domain": "rexall.ca",
+    "merchant": "Rexall",
+    "region": "AB"
+  },
+  "REXALL # HOUSTON TX": {
+    "category": "Health & Pharmacy",
+    "city": "Houston",
+    "confidence": 0.6,
+    "direction": "debit",
+    "is_recurring": false,
+    "logo_domain": "rexall.ca",
+    "merchant": "Rexall",
+    "region": "TX"
+  },
+  "RITE AID # CHICAGO IL": {
+    "category": "Health & Pharmacy",
+    "city": "Chicago",
+    "confidence": 0.92,
+    "direction": "debit",
+    "is_recurring": false,
+    "logo_domain": "riteaid.com",
+    "merchant": "Rite Aid",
+    "region": "IL"
+  },
+  "RITE AID # EDMONTON AB": {
+    "category": "Health & Pharmacy",
+    "city": "Edmonton",
+    "confidence": 0.7,
+    "direction": "debit",
+    "is_recurring": false,
+    "logo_domain": "riteaid.com",
+    "merchant": "Rite Aid",
+    "region": "AB"
+  },
+  "RITE AID # OTTAWA ON": {
+    "category": "Health & Pharmacy",
+    "city": "Ottawa",
+    "confidence": 0.7,
+    "direction": "debit",
+    "is_recurring": false,
+    "logo_domain": "riteaid.com",
+    "merchant": "Rite Aid",
+    "region": "ON"
+  },
+  "RITE AID # SEATTLE WA": {
+    "category": "Health & Pharmacy",
+    "city": "Seattle",
+    "confidence": 0.92,
+    "direction": "debit",
+    "is_recurring": false,
+    "logo_domain": "riteaid.com",
+    "merchant": "Rite Aid",
+    "region": "WA"
+  },
+  "ROGERS COMM #": {
+    "category": "Utilities & Telecom",
+    "city": null,
+    "confidence": 0.88,
+    "direction": "debit",
+    "is_recurring": true,
+    "logo_domain": "rogers.com",
+    "merchant": "Rogers Communications",
+    "region": null
+  },
+  "SAFEWAY # VANCOUVER BC": {
+    "category": "Groceries",
+    "city": "Vancouver",
+    "confidence": 0.9,
+    "direction": "debit",
+    "is_recurring": false,
+    "logo_domain": "safeway.com",
+    "merchant": "Safeway",
+    "region": "BC"
+  },
+  "SHAKE SHACK ATLANTA GA": {
+    "category": "Dining",
+    "city": "Atlanta",
+    "confidence": 0.93,
+    "direction": "debit",
+    "is_recurring": false,
+    "logo_domain": "shakeshack.com",
+    "merchant": "Shake Shack",
+    "region": "GA"
+  },
+  "SHAKE SHACK BOSTON MA": {
+    "category": "Dining",
+    "city": "Boston",
+    "confidence": 0.93,
+    "direction": "debit",
+    "is_recurring": false,
+    "logo_domain": "shakeshack.com",
+    "merchant": "Shake Shack",
+    "region": "MA"
+  },
+  "SHAKE SHACK DENVER CO": {
+    "category": "Dining",
+    "city": "Denver",
+    "confidence": 0.93,
+    "direction": "debit",
+    "is_recurring": false,
+    "logo_domain": "shakeshack.com",
+    "merchant": "Shake Shack",
+    "region": "CO"
+  },
+  "SHAKE SHACK OTTAWA ON": {
+    "category": "Dining",
+    "city": "Ottawa",
+    "confidence": 0.75,
+    "direction": "debit",
+    "is_recurring": false,
+    "logo_domain": "shakeshack.com",
+    "merchant": "Shake Shack",
+    "region": "ON"
+  },
+  "SHEIN.COM #": {
+    "category": "Shopping",
+    "city": null,
+    "confidence": 0.88,
+    "direction": "debit",
+    "is_recurring": false,
+    "logo_domain": "shein.com",
+    "merchant": "Shein",
+    "region": null
+  },
+  "SHELL OIL # LOS ANGELES CA": {
+    "category": "Fuel",
+    "city": "Los Angeles",
+    "confidence": 0.9,
+    "direction": "debit",
+    "is_recurring": false,
+    "logo_domain": "shell.com",
+    "merchant": "Shell",
+    "region": "CA"
+  },
+  "SHELL OIL # NEW YORK NY": {
+    "category": "Fuel",
+    "city": "New York",
+    "confidence": 0.9,
+    "direction": "debit",
+    "is_recurring": false,
+    "logo_domain": "shell.com",
+    "merchant": "Shell",
+    "region": "NY"
+  },
+  "SHELL OIL # OTTAWA ON": {
+    "category": "Fuel",
+    "city": "Ottawa",
+    "confidence": 0.85,
+    "direction": "debit",
+    "is_recurring": false,
+    "logo_domain": "shell.com",
+    "merchant": "Shell",
+    "region": "ON"
+  },
+  "SHELL OIL # SAN FRANCISCO CA": {
+    "category": "Fuel",
+    "city": "San Francisco",
+    "confidence": 0.93,
+    "direction": "debit",
+    "is_recurring": false,
+    "logo_domain": "shell.com",
+    "merchant": "Shell",
+    "region": "CA"
+  },
+  "SHOPPERS DRUG MART CALGARY AB": {
+    "category": "Health & Pharmacy",
+    "city": "Calgary",
+    "confidence": 0.9,
+    "direction": "debit",
+    "is_recurring": false,
+    "logo_domain": "shoppersdrugmart.ca",
+    "merchant": "Shoppers Drug Mart",
+    "region": "AB"
+  },
+  "SHOPPERS DRUG MART EDMONTON AB": {
+    "category": "Health & Pharmacy",
+    "city": "Edmonton",
+    "confidence": 0.9,
+    "direction": "debit",
+    "is_recurring": false,
+    "logo_domain": "shoppersdrugmart.ca",
+    "merchant": "Shoppers Drug Mart",
+    "region": "AB"
+  },
+  "SHOPPERS DRUG MART MISSISSAUGA ON": {
+    "category": "Health & Pharmacy",
+    "city": "Mississauga",
+    "confidence": 0.9,
+    "direction": "debit",
+    "is_recurring": false,
+    "logo_domain": "shoppersdrugmart.ca",
+    "merchant": "Shoppers Drug Mart",
+    "region": "ON"
+  },
+  "SHOPPERS DRUG MART MONTREAL QC": {
+    "category": "Health & Pharmacy",
+    "city": "Montreal",
+    "confidence": 0.9,
+    "direction": "debit",
+    "is_recurring": false,
+    "logo_domain": "shoppersdrugmart.ca",
+    "merchant": "Shoppers Drug Mart",
+    "region": "QC"
+  },
+  "SHOPPERS DRUG MART PHOENIX AZ": {
+    "category": "Health & Pharmacy",
+    "city": "Phoenix",
+    "confidence": 0.55,
+    "direction": "debit",
+    "is_recurring": false,
+    "logo_domain": "shoppersdrugmart.ca",
+    "merchant": "Shoppers Drug Mart",
+    "region": "AZ"
+  },
+  "SHOPPERS DRUG MART VANCOUVER BC": {
+    "category": "Health & Pharmacy",
+    "city": "Vancouver",
+    "confidence": 0.9,
+    "direction": "debit",
+    "is_recurring": false,
+    "logo_domain": "shoppersdrugmart.ca",
+    "merchant": "Shoppers Drug Mart",
+    "region": "BC"
+  },
+  "SOBEYS CALGARY AB": {
+    "category": "Groceries",
+    "city": "Calgary",
+    "confidence": 0.92,
+    "direction": "debit",
+    "is_recurring": false,
+    "logo_domain": "sobeys.com",
+    "merchant": "Sobeys",
+    "region": "AB"
+  },
+  "SOBEYS CHICAGO IL": {
+    "category": "Groceries",
+    "city": "Chicago",
+    "confidence": 0.55,
+    "direction": "debit",
+    "is_recurring": false,
+    "logo_domain": "sobeys.com",
+    "merchant": "Sobeys",
+    "region": "IL"
+  },
+  "SOBEYS HOUSTON TX": {
+    "category": "Groceries",
+    "city": "Houston",
+    "confidence": 0.55,
+    "direction": "debit",
+    "is_recurring": false,
+    "logo_domain": "sobeys.com",
+    "merchant": "Sobeys",
+    "region": "TX"
+  },
+  "SOBEYS NEW YORK NY": {
+    "category": "Groceries",
+    "city": "New York",
+    "confidence": 0.55,
+    "direction": "debit",
+    "is_recurring": false,
+    "logo_domain": "sobeys.com",
+    "merchant": "Sobeys",
+    "region": "NY"
+  },
+  "SPOTIFY USA #": {
+    "category": "Subscriptions",
+    "city": null,
+    "confidence": 0.95,
+    "direction": "debit",
+    "is_recurring": true,
+    "logo_domain": "spotify.com",
+    "merchant": "Spotify",
+    "region": null
+  },
+  "STARBUCKS ## AUSTIN TX": {
+    "category": "Dining",
+    "city": "Austin",
+    "confidence": 0.93,
+    "direction": "debit",
+    "is_recurring": false,
+    "logo_domain": "starbucks.com",
+    "merchant": "Starbucks",
+    "region": "TX"
+  },
+  "STARBUCKS ## DENVER CO": {
+    "category": "Dining",
+    "city": "Denver",
+    "confidence": 0.93,
+    "direction": "debit",
+    "is_recurring": false,
+    "logo_domain": "starbucks.com",
+    "merchant": "Starbucks",
+    "region": "CO"
+  },
+  "STARBUCKS ## SEATTLE WA": {
+    "category": "Dining",
+    "city": "Seattle",
+    "confidence": 0.93,
+    "direction": "debit",
+    "is_recurring": false,
+    "logo_domain": "starbucks.com",
+    "merchant": "Starbucks",
+    "region": "WA"
+  },
+  "STATE FARM INS #": {
+    "category": "Insurance",
+    "city": null,
+    "confidence": 0.9,
+    "direction": "debit",
+    "is_recurring": true,
+    "logo_domain": "statefarm.com",
+    "merchant": "State Farm Insurance",
+    "region": null
+  },
+  "STEAMGAMES.COM #": {
+    "category": "Entertainment",
+    "city": null,
+    "confidence": 0.85,
+    "direction": "debit",
+    "is_recurring": false,
+    "logo_domain": "steampowered.com",
+    "merchant": "Steam",
+    "region": null
+  },
+  "STUBHUB #": {
+    "category": "Entertainment",
+    "city": null,
+    "confidence": 0.88,
+    "direction": "debit",
+    "is_recurring": false,
+    "logo_domain": "stubhub.com",
+    "merchant": "StubHub",
+    "region": null
+  },
+  "SUBWAY # BOSTON MA": {
+    "category": "Dining",
+    "city": "Boston",
+    "confidence": 0.92,
+    "direction": "debit",
+    "is_recurring": false,
+    "logo_domain": "subway.com",
+    "merchant": "Subway",
+    "region": "MA"
+  },
+  "SUBWAY # LOS ANGELES CA": {
+    "category": "Dining",
+    "city": "Los Angeles",
+    "confidence": 0.92,
+    "direction": "debit",
+    "is_recurring": false,
+    "logo_domain": "subway.com",
+    "merchant": "Subway",
+    "region": "CA"
+  },
+  "SUBWAY # WINNIPEG MB": {
+    "category": "Dining",
+    "city": "Winnipeg",
+    "confidence": 0.92,
+    "direction": "debit",
+    "is_recurring": false,
+    "logo_domain": "subway.com",
+    "merchant": "Subway",
+    "region": "MB"
+  },
+  "T-MOBILE #": {
+    "category": "Utilities & Telecom",
+    "city": null,
+    "confidence": 0.93,
+    "direction": "debit",
+    "is_recurring": true,
+    "logo_domain": "t-mobile.com",
+    "merchant": "T-Mobile",
+    "region": null
+  },
+  "TACO BELL #": {
+    "category": "Dining",
+    "city": null,
+    "confidence": 0.9,
+    "direction": "debit",
+    "is_recurring": false,
+    "logo_domain": "tacobell.com",
+    "merchant": "Taco Bell",
+    "region": null
+  },
+  "TARGET # PHOENIX AZ": {
+    "category": "Shopping",
+    "city": "Phoenix",
+    "confidence": 0.88,
+    "direction": "debit",
+    "is_recurring": false,
+    "logo_domain": "target.com",
+    "merchant": "Target",
+    "region": "AZ"
+  },
+  "TARGET GROCERY HOUSTON TX": {
+    "category": "Groceries",
+    "city": "Houston",
+    "confidence": 0.85,
+    "direction": "debit",
+    "is_recurring": false,
+    "logo_domain": "target.com",
+    "merchant": "Target",
+    "region": "TX"
+  },
+  "TARGET GROCERY OTTAWA ON": {
+    "category": "Groceries",
+    "city": "Ottawa",
+    "confidence": 0.85,
+    "direction": "debit",
+    "is_recurring": false,
+    "logo_domain": "target.com",
+    "merchant": "Target",
+    "region": "ON"
+  },
+  "TARGET GROCERY SEATTLE WA": {
+    "category": "Groceries",
+    "city": "Seattle",
+    "confidence": 0.85,
+    "direction": "debit",
+    "is_recurring": false,
+    "logo_domain": "target.com",
+    "merchant": "Target",
+    "region": "WA"
+  },
+  "TARGET GROCERY VANCOUVER BC": {
+    "category": "Groceries",
+    "city": "Vancouver",
+    "confidence": 0.85,
+    "direction": "debit",
+    "is_recurring": false,
+    "logo_domain": "target.com",
+    "merchant": "Target",
+    "region": "BC"
+  },
+  "TARGET GROCERY WINNIPEG MB": {
+    "category": "Groceries",
+    "city": "Winnipeg",
+    "confidence": 0.85,
+    "direction": "debit",
+    "is_recurring": false,
+    "logo_domain": "target.com",
+    "merchant": "Target",
+    "region": "MB"
+  },
+  "THE HOME DEPOT # EDMONTON AB": {
+    "category": "Home",
+    "city": "Edmonton",
+    "confidence": 0.9,
+    "direction": "debit",
+    "is_recurring": false,
+    "logo_domain": "homedepot.com",
+    "merchant": "The Home Depot",
+    "region": "AB"
+  },
+  "THE HOME DEPOT # TORONTO ON": {
+    "category": "Home",
+    "city": "Toronto",
+    "confidence": 0.9,
+    "direction": "debit",
+    "is_recurring": false,
+    "logo_domain": "homedepot.com",
+    "merchant": "The Home Depot",
+    "region": "ON"
+  },
+  "THE HOME DEPOT # VANCOUVER BC": {
+    "category": "Home",
+    "city": "Vancouver",
+    "confidence": 0.9,
+    "direction": "debit",
+    "is_recurring": false,
+    "logo_domain": "homedepot.com",
+    "merchant": "The Home Depot",
+    "region": "BC"
+  },
+  "TICKETMASTER #": {
+    "category": "Entertainment",
+    "city": null,
+    "confidence": 0.9,
+    "direction": "debit",
+    "is_recurring": false,
+    "logo_domain": "ticketmaster.com",
+    "merchant": "Ticketmaster",
+    "region": null
+  },
+  "TIM HORTONS ## ATLANTA GA": {
+    "category": "Dining",
+    "city": "Atlanta",
+    "confidence": 0.85,
+    "direction": "debit",
+    "is_recurring": false,
+    "logo_domain": "timhortons.com",
+    "merchant": "Tim Hortons",
+    "region": "GA"
+  },
+  "TRADER JOES #": {
+    "category": "Groceries",
+    "city": null,
+    "confidence": 0.9,
+    "direction": "debit",
+    "is_recurring": false,
+    "logo_domain": "traderjoes.com",
+    "merchant": "Trader Joe's",
+    "region": null
+  },
+  "TRANSFER TO CHECKING #": {
+    "category": "Transfers",
+    "city": null,
+    "confidence": 0.85,
+    "direction": "debit",
+    "is_recurring": false,
+    "logo_domain": null,
+    "merchant": "Transfer to Checking",
+    "region": null
+  },
+  "UBER *TRIP #": {
+    "category": "Transport",
+    "city": null,
+    "confidence": 0.9,
+    "direction": "debit",
+    "is_recurring": false,
+    "logo_domain": "uber.com",
+    "merchant": "Uber",
+    "region": null
+  },
+  "UBER EATS #": {
+    "category": "Dining",
+    "city": null,
+    "confidence": 0.9,
+    "direction": "debit",
+    "is_recurring": false,
+    "logo_domain": "ubereats.com",
+    "merchant": "Uber Eats",
+    "region": null
+  },
+  "VENMO *PAYMENT #": {
+    "category": "Transfers",
+    "city": null,
+    "confidence": 0.7,
+    "direction": "debit",
+    "is_recurring": false,
+    "logo_domain": "venmo.com",
+    "merchant": "Venmo",
+    "region": null
+  },
+  "VERIZON WIRELESS #": {
+    "category": "Utilities & Telecom",
+    "city": null,
+    "confidence": 0.9,
+    "direction": "debit",
+    "is_recurring": true,
+    "logo_domain": "verizon.com",
+    "merchant": "Verizon Wireless",
+    "region": null
+  },
+  "VIA RAIL #": {
+    "category": "Travel",
+    "city": null,
+    "confidence": 0.85,
+    "direction": "debit",
+    "is_recurring": false,
+    "logo_domain": "viarail.ca",
+    "merchant": "VIA Rail",
+    "region": null
+  },
+  "WALGREENS # CALGARY AB": {
+    "category": "Health & Pharmacy",
+    "city": "Calgary",
+    "confidence": 0.85,
+    "direction": "debit",
+    "is_recurring": false,
+    "logo_domain": "walgreens.com",
+    "merchant": "Walgreens",
+    "region": "AB"
+  },
+  "WALGREENS # LOS ANGELES CA": {
+    "category": "Health & Pharmacy",
+    "city": "Los Angeles",
+    "confidence": 0.85,
+    "direction": "debit",
+    "is_recurring": false,
+    "logo_domain": "walgreens.com",
+    "merchant": "Walgreens",
+    "region": "CA"
+  },
+  "WALGREENS # MISSISSAUGA ON": {
+    "category": "Health & Pharmacy",
+    "city": "Mississauga",
+    "confidence": 0.85,
+    "direction": "debit",
+    "is_recurring": false,
+    "logo_domain": "walgreens.com",
+    "merchant": "Walgreens",
+    "region": "ON"
+  },
+  "WALGREENS # SAN FRANCISCO CA": {
+    "category": "Health & Pharmacy",
+    "city": "San Francisco",
+    "confidence": 0.85,
+    "direction": "debit",
+    "is_recurring": false,
+    "logo_domain": "walgreens.com",
+    "merchant": "Walgreens",
+    "region": "CA"
+  },
+  "WALGREENS # TORONTO ON": {
+    "category": "Health & Pharmacy",
+    "city": "Toronto",
+    "confidence": 0.85,
+    "direction": "debit",
+    "is_recurring": false,
+    "logo_domain": "walgreens.com",
+    "merchant": "Walgreens",
+    "region": "ON"
+  },
+  "WALMART GROCERY AUSTIN TX": {
+    "category": "Groceries",
+    "city": "Austin",
+    "confidence": 0.85,
+    "direction": "debit",
+    "is_recurring": false,
+    "logo_domain": "walmart.com",
+    "merchant": "Walmart",
+    "region": "TX"
+  },
+  "WALMART GROCERY DENVER CO": {
+    "category": "Groceries",
+    "city": "Denver",
+    "confidence": 0.85,
+    "direction": "debit",
+    "is_recurring": false,
+    "logo_domain": "walmart.com",
+    "merchant": "Walmart",
+    "region": "CO"
+  },
+  "WALMART GROCERY EDMONTON AB": {
+    "category": "Groceries",
+    "city": "Edmonton",
+    "confidence": 0.85,
+    "direction": "debit",
+    "is_recurring": false,
+    "logo_domain": "walmart.com",
+    "merchant": "Walmart",
+    "region": "AB"
+  },
+  "WALMART GROCERY NEW YORK NY": {
+    "category": "Groceries",
+    "city": "New York",
+    "confidence": 0.85,
+    "direction": "debit",
+    "is_recurring": false,
+    "logo_domain": "walmart.com",
+    "merchant": "Walmart",
+    "region": "NY"
+  },
+  "WALMART GROCERY SAN FRANCISCO CA": {
+    "category": "Groceries",
+    "city": "San Francisco",
+    "confidence": 0.9,
+    "direction": "debit",
+    "is_recurring": false,
+    "logo_domain": "walmart.com",
+    "merchant": "Walmart",
+    "region": "CA"
+  },
+  "WALMART GROCERY VANCOUVER BC": {
+    "category": "Groceries",
+    "city": "Vancouver",
+    "confidence": 0.9,
+    "direction": "debit",
+    "is_recurring": false,
+    "logo_domain": "walmart.com",
+    "merchant": "Walmart",
+    "region": "BC"
+  },
+  "WALMART PHARMACY SAN FRANCISCO CA": {
+    "category": "Health & Pharmacy",
+    "city": "San Francisco",
+    "confidence": 0.9,
+    "direction": "debit",
+    "is_recurring": false,
+    "logo_domain": "walmart.com",
+    "merchant": "Walmart Pharmacy",
+    "region": "CA"
+  },
+  "WALMART PHARMACY TORONTO ON": {
+    "category": "Health & Pharmacy",
+    "city": "Toronto",
+    "confidence": 0.9,
+    "direction": "debit",
+    "is_recurring": false,
+    "logo_domain": "walmart.com",
+    "merchant": "Walmart Pharmacy",
+    "region": "ON"
+  },
+  "WALMART PHARMACY VANCOUVER BC": {
+    "category": "Health & Pharmacy",
+    "city": "Vancouver",
+    "confidence": 0.9,
+    "direction": "debit",
+    "is_recurring": false,
+    "logo_domain": "walmart.com",
+    "merchant": "Walmart Pharmacy",
+    "region": "BC"
+  },
+  "WAYFAIR #": {
+    "category": "Shopping",
+    "city": null,
+    "confidence": 0.85,
+    "direction": "debit",
+    "is_recurring": false,
+    "logo_domain": "wayfair.com",
+    "merchant": "Wayfair",
+    "region": null
+  },
+  "WESTERN UNION #": {
+    "category": "Transfers",
+    "city": null,
+    "confidence": 0.7,
+    "direction": "debit",
+    "is_recurring": false,
+    "logo_domain": "westernunion.com",
+    "merchant": "Western Union",
+    "region": null
+  },
+  "WHOLE FOODS EDMONTON AB": {
+    "category": "Groceries",
+    "city": "Edmonton",
+    "confidence": 0.9,
+    "direction": "debit",
+    "is_recurring": false,
+    "logo_domain": "wholefoodsmarket.com",
+    "merchant": "Whole Foods",
+    "region": "AB"
+  },
+  "WHOLE FOODS MIAMI FL": {
+    "category": "Groceries",
+    "city": "Miami",
+    "confidence": 0.9,
+    "direction": "debit",
+    "is_recurring": false,
+    "logo_domain": "wholefoodsmarket.com",
+    "merchant": "Whole Foods",
+    "region": "FL"
+  },
+  "WHOLE FOODS SEATTLE WA": {
+    "category": "Groceries",
+    "city": "Seattle",
+    "confidence": 0.9,
+    "direction": "debit",
+    "is_recurring": false,
+    "logo_domain": "wholefoodsmarket.com",
+    "merchant": "Whole Foods",
+    "region": "WA"
+  },
+  "WHOLE FOODS VANCOUVER BC": {
+    "category": "Groceries",
+    "city": "Vancouver",
+    "confidence": 0.9,
+    "direction": "debit",
+    "is_recurring": false,
+    "logo_domain": "wholefoodsmarket.com",
+    "merchant": "Whole Foods",
+    "region": "BC"
+  },
+  "WIRE TRANSFER #": {
+    "category": "Transfers",
+    "city": null,
+    "confidence": 0.6,
+    "direction": "debit",
+    "is_recurring": false,
+    "logo_domain": null,
+    "merchant": "Wire Transfer",
+    "region": null
+  },
+  "WIRE TRANSFER FEE #": {
+    "category": "Fees & Charges",
+    "city": null,
+    "confidence": 0.85,
+    "direction": "debit",
+    "is_recurring": false,
+    "logo_domain": null,
+    "merchant": "Wire Transfer Fee",
+    "region": null
+  },
+  "WISE TRANSFER #": {
+    "category": "Transfers",
+    "city": null,
+    "confidence": 0.75,
+    "direction": "debit",
+    "is_recurring": false,
+    "logo_domain": "wise.com",
+    "merchant": "Wise Transfer",
+    "region": null
+  },
+  "XBOX *GAMEPASS #": {
+    "category": "Subscriptions",
+    "city": null,
+    "confidence": 0.9,
+    "direction": "debit",
+    "is_recurring": true,
+    "logo_domain": "xbox.com",
+    "merchant": "Xbox Game Pass",
+    "region": null
+  },
+  "YOUTUBEPREMIUM #": {
+    "category": "Subscriptions",
+    "city": null,
+    "confidence": 0.9,
+    "direction": "debit",
+    "is_recurring": true,
+    "logo_domain": "youtube.com",
+    "merchant": "YouTube Premium",
+    "region": null
+  },
+  "ZARA US EDMONTON AB": {
+    "category": "Shopping",
+    "city": "Edmonton",
+    "confidence": 0.85,
+    "direction": "debit",
+    "is_recurring": false,
+    "logo_domain": "zara.com",
+    "merchant": "Zara",
+    "region": "AB"
+  },
+  "ZARA US PHOENIX AZ": {
+    "category": "Shopping",
+    "city": "Phoenix",
+    "confidence": 0.85,
+    "direction": "debit",
+    "is_recurring": false,
+    "logo_domain": "zara.com",
+    "merchant": "Zara",
+    "region": "AZ"
+  },
+  "ZARA US TORONTO ON": {
+    "category": "Shopping",
+    "city": "Toronto",
+    "confidence": 0.85,
+    "direction": "debit",
+    "is_recurring": false,
+    "logo_domain": "zara.com",
+    "merchant": "Zara",
+    "region": "ON"
+  },
+  "ZELLE TRANSFER #": {
+    "category": "Transfers",
+    "city": null,
+    "confidence": 0.6,
+    "direction": "credit",
+    "is_recurring": false,
+    "logo_domain": "zellepay.com",
+    "merchant": "Zelle Transfer",
+    "region": null
+  }
+}

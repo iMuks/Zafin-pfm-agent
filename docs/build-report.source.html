@@ -1,0 +1,565 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Penny — Build Report</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{--bg:#f7f8fc;--surface:#fff;--ink:#0d1220;--ink2:#47506b;--ink3:#8b93ab;
+--line:#e3e6f0;--brand:#4f46e5;--brand-deep:#312e81;--brand-soft:#eef0ff;
+--ok:#0d9488;--warn:#b45309;--bad:#b91c1c;--nav:#0f172a;--sidebar:250px}
+html{scroll-behavior:smooth}
+body{font:15px/1.65 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:var(--ink);background:var(--bg)}
+code,.mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.88em}
+code{background:var(--brand-soft);color:var(--brand-deep);padding:1px 5px;border-radius:4px}
+/* sidebar */
+.side{position:fixed;left:0;top:0;width:var(--sidebar);height:100vh;background:var(--nav);
+display:flex;flex-direction:column;overflow:hidden;z-index:10}
+.side-head{padding:22px 20px 16px;border-bottom:1px solid rgba(255,255,255,.09)}
+.side-eyebrow{font-size:9.5px;font-weight:700;letter-spacing:.13em;text-transform:uppercase;color:#818cf8;margin-bottom:6px}
+.side-title{font-size:17px;font-weight:700;color:#f1f5f9;letter-spacing:-.01em}
+.side-sub{font-size:11.5px;color:#7c86a8;margin-top:3px}
+.side-nav{flex:1;overflow-y:auto;padding:10px 0 30px}
+.side-nav a{display:block;padding:7px 20px;font-size:12.5px;color:#8b95b8;text-decoration:none;
+border-left:3px solid transparent;transition:.15s}
+.side-nav a:hover{background:#1c2438;color:#cbd5e1}
+.side-nav a.on{border-left-color:#818cf8;color:#c7d2fe;background:rgba(129,140,248,.09)}
+.side-nav .grp{font-size:9px;font-weight:700;letter-spacing:.13em;text-transform:uppercase;
+color:#4a5578;padding:14px 20px 5px}
+/* main */
+main{margin-left:var(--sidebar);max-width:1010px;padding:0 46px 90px}
+.hero{background:linear-gradient(140deg,#0f172a,#312e81 62%,#0f172a);margin:0 -46px 40px;padding:46px 46px 38px;color:#fff}
+.hero h1{font-size:33px;font-weight:800;letter-spacing:-.025em;margin-bottom:8px}
+.hero p{font-size:15.5px;color:#b6bfe0;max-width:660px}
+.metrics{display:flex;gap:30px;flex-wrap:wrap;margin-top:26px}
+.metric b{display:block;font-size:21px;font-weight:800;color:#f1f5f9;line-height:1.1}
+.metric span{font-size:10.5px;color:#8b95b8;text-transform:uppercase;letter-spacing:.06em}
+section{margin-bottom:44px;scroll-margin-top:20px}
+h2{font-size:19px;font-weight:700;letter-spacing:-.015em;padding-bottom:10px;margin-bottom:16px;border-bottom:2px solid var(--line)}
+h3{font-size:14px;font-weight:700;margin:22px 0 9px;color:var(--ink)}
+p{margin-bottom:12px;color:var(--ink2)}
+p strong,li strong{color:var(--ink)}
+ul,ol{margin:0 0 13px 21px}li{margin-bottom:6px;color:var(--ink2)}
+table{width:100%;border-collapse:collapse;background:var(--surface);border:1px solid var(--line);
+border-radius:10px;overflow:hidden;margin-bottom:16px;font-size:13px}
+th{text-align:left;font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;
+color:var(--ink3);padding:10px 12px;background:#fafbfe;border-bottom:1px solid var(--line)}
+td{padding:9px 12px;border-bottom:1px solid #f1f3f9;color:var(--ink2);vertical-align:top}
+tr:last-child td{border-bottom:0}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:17px 19px;margin-bottom:14px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(232px,1fr));gap:13px;margin-bottom:16px}
+.note{border-left:4px solid var(--brand);background:var(--brand-soft);padding:13px 17px;border-radius:0 9px 9px 0;margin-bottom:16px;font-size:13.5px;color:#26246b}
+.warn{border-left:4px solid #f59e0b;background:#fffbeb;padding:13px 17px;border-radius:0 9px 9px 0;margin-bottom:16px;font-size:13.5px;color:#78350f}
+.pill{display:inline-block;font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:20px}
+.p-ok{background:#ecfdf5;color:#065f46}.p-no{background:#fef2f2;color:#991b1b}
+.p-man{background:#fffbeb;color:#92400e}.p-part{background:#fff7ed;color:#9a3412}
+details{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:12px 16px;margin-bottom:10px}
+details[open]{background:#fcfdff}
+summary{cursor:pointer;font-weight:650;font-size:13.5px;color:var(--ink);list-style:none;display:flex;align-items:center;gap:8px}
+summary::-webkit-details-marker{display:none}
+summary::before{content:'▶';font-size:9px;color:var(--brand);transition:.15s}
+details[open] summary::before{transform:rotate(90deg)}
+summary+*{margin-top:11px}
+figure{margin:0 0 16px}
+figure img,figure svg{width:100%;height:auto;background:var(--surface);border:1px solid var(--line);border-radius:12px}
+figcaption{font-size:12px;color:var(--ink3);margin-top:7px;text-align:center}
+.q{border-left:3px solid var(--ok);padding-left:14px;margin:0 0 13px;font-size:13.5px;color:var(--ink2);font-style:italic}
+@media(max-width:900px){.side{display:none}main{margin-left:0;padding:0 20px 60px}.hero{margin:0 -20px 30px;padding:34px 20px}}
+</style>
+</head>
+<body>
+<aside class="side">
+  <div class="side-head">
+    <div class="side-eyebrow">Build Report</div>
+    <div class="side-title">Penny</div>
+    <div class="side-sub">Conversational PFM agent</div>
+  </div>
+  <nav class="side-nav">
+    <div class="grp">Report</div>
+    <a href="#summary">1 · Executive summary</a>
+    <a href="#stories">2 · User stories &amp; coverage</a>
+    <a href="#stack">3 · Tech stack</a>
+    <a href="#backend">4 · Backend components</a>
+    <a href="#data">·&nbsp; Data pipeline (Task 2)</a>
+    <a href="#architecture">5 · System architecture</a>
+    <a href="#flow">6 · End-to-end flow</a>
+    <a href="#inventory">7 · Architecture components</a>
+    <a href="#principles">8 · Design principles</a>
+    <a href="#production">9 · Production plan</a>
+    <div class="grp">Transparency</div>
+    <a href="#evidence">Evidence &amp; validation</a>
+    <a href="#status">Done, not done, next</a>
+  </nav>
+</aside>
+
+<main>
+<div class="hero">
+  <h1>Penny — build report</h1>
+  <p>A chat-based spending companion for a US retail bank. An LLM reasons and
+  chooses tools; Python computes every number. Built for the Zafin AI coding
+  assignment.</p>
+  <div class="metrics">
+    <div class="metric"><b>66</b><span>modules</span></div>
+    <div class="metric"><b>159</b><span>tests</span></div>
+    <div class="metric"><b>10</b><span>tools</span></div>
+    <div class="metric"><b>11 / 12</b><span>user stories</span></div>
+    <div class="metric"><b>300</b><span>transactions</span></div>
+    <div class="metric"><b>claude-opus-5</b><span>model</span></div>
+  </div>
+</div>
+
+<section id="summary">
+<h2>1 · Executive summary</h2>
+<p>Penny answers natural-language questions about six months of transaction
+history. The design decision everything else follows from: <strong>the model
+never does arithmetic.</strong> It decides which question to ask; Python answers
+it.</p>
+<div class="note"><strong>Why that matters.</strong> All 300 transactions would
+fit in a 1M-token context — and that is exactly the wrong reason to put them
+there. Loading raw rows makes the model add up figures token by token, which is
+where financial assistants produce confidently wrong totals. Instead the model
+picks a tool, and a deterministic function returns the number.</div>
+<table>
+  <tr><th>Claude decides</th><th>Python computes</th></tr>
+  <tr><td>which tool answers the question</td><td>every sum, average, percentage, ranking</td></tr>
+  <tr><td>which month, category, merchant</td><td>what counts as spending vs. a transfer</td></tr>
+  <tr><td>how to phrase it, and what to caveat</td><td>which charges are duplicates or outliers</td></tr>
+</table>
+<p>The second decision: <strong>the stream carries UI components, not tokens.</strong>
+Each line of the response is one complete, validated component, so the answer's
+first sentence renders while the chart beneath it is still being generated.</p>
+<h3>What it does well</h3>
+<ul>
+  <li><strong>It refuses honestly.</strong> Asked about a savings goal, Penny says
+  no goal exists in the data, then offers the run rate instead. Asked to pay a
+  bill, she declines — and there is no tool that could do it, so the limit is
+  structural rather than a prompt instruction.</li>
+  <li><strong>Its figures are checkable.</strong> Every number in the recorded
+  transcript was verified against the raw dataset independently of the code that
+  produced it.</li>
+  <li><strong>It degrades rather than breaking.</strong> Malformed model output is
+  repaired where possible, and dropped visibly where not.</li>
+</ul>
+</section>
+
+<section id="stories">
+<h2>2 · User stories &amp; functional coverage</h2>
+<p>All twelve stories from the brief are exercised, each as a case in the
+evaluation suite. Eleven are answered from data; one is declined on purpose.</p>
+<table>
+  <tr><th>Story</th><th>Difficulty</th><th>Status</th><th>How</th></tr>
+  <tr><td>Spend on restaurants last month</td><td>easy</td><td><span class="pill p-ok">ANSWERED</span></td><td><code>get_spending_by_category</code></td></tr>
+  <tr><td>Top 3 spending categories</td><td>easy</td><td><span class="pill p-ok">ANSWERED</span></td><td><code>get_top_categories</code> + pie chart</td></tr>
+  <tr><td>Show all my subscriptions</td><td>easy</td><td><span class="pill p-ok">ANSWERED</span></td><td><code>list_subscriptions</code> + logo cards</td></tr>
+  <tr><td>Which merchant do I spend most at</td><td>easy</td><td><span class="pill p-ok">ANSWERED</span></td><td><code>get_top_merchants</code></td></tr>
+  <tr><td>Duplicate charges</td><td>medium</td><td><span class="pill p-ok">ANSWERED</span></td><td><code>detect_anomalies</code> — same merchant + amount within 3 days</td></tr>
+  <tr><td>This month vs last month</td><td>medium</td><td><span class="pill p-ok">ANSWERED</span></td><td><code>compare_periods</code>, flags comparability</td></tr>
+  <tr><td>Flag unusual transactions</td><td>medium</td><td><span class="pill p-ok">ANSWERED</span></td><td>outliers &gt; 2σ <em>within their own category</em></td></tr>
+  <tr><td>Average weekly grocery spend</td><td>medium</td><td><span class="pill p-ok">ANSWERED</span></td><td>denominator is the calendar period, not the transaction span</td></tr>
+  <tr><td>Coffee shop visits, with logos</td><td>medium</td><td><span class="pill p-ok">ANSWERED</span></td><td><code>find_transactions</code> → merchant cards</td></tr>
+  <tr><td>How much of my income goes to food</td><td>hard</td><td><span class="pill p-part">WITH CAVEAT</span></td><td>answered, but relays that income is only partly visible</td></tr>
+  <tr><td>Am I on track for my savings goal</td><td>hard</td><td><span class="pill p-no">DECLINED</span></td><td>no goal exists in the data — offers income vs. spend and run rate</td></tr>
+  <tr><td>Predict end-of-month balance</td><td>hard</td><td><span class="pill p-part">REFRAMED</span></td><td>projects <em>spend</em>; states plainly that a balance is not derivable</td></tr>
+</table>
+<div class="note"><strong>The declined story is the point, not a gap.</strong> The
+brief says: “Not every story is achievable with transaction history alone — this
+is intentional. Part of the exercise is recognising which queries can be derived
+from data vs. which require additional context.” Two further probes were added to
+the eval suite for the same reason — <em>“What's my current account balance?”</em>
+and <em>“Can you pay my Netflix bill?”</em> — and both are declined.</p></div>
+<details><summary>Verbatim: how Penny handles the savings-goal question</summary>
+<p class="q">“There's no savings goal stored in this data — I have transaction
+history only, so I can't tell you whether you're on track against a target, and I
+can't see a balance either. What I can tell you: you've spent $9,700.46 so far in
+July through day 28, a run rate of $346.44/day, which straight-lines to about
+$10,739.80 by month end. That's roughly $999 below your $11,739.00 average across
+the five complete months from February to June… The projection assumes the last
+three days look like the first 28, which is a weak assumption around rent and
+payday. And no income credits at all appear in July — your salary clearly lands
+in another account, so I genuinely can't compute what you saved, only what you
+spent.”</p>
+<p>Note the baseline: <em>five complete months, February to June</em>. The dataset
+opens on 2026-01-28, so January holds four days. An earlier build averaged that
+stub in as though it were a whole month, which pulled the baseline down to
+$9,846.26 and reported July as <em>$893.54 above</em> average — the opposite of
+the truth. <code>is_month_fully_covered()</code> now requires a month to be
+covered at both edges before it can join a baseline, and two regression tests
+pin it.</p>
+<p>Recorded live in <code>docs/demo-transcript.md</code>.</p>
+</details>
+</section>
+
+<section id="stack">
+<h2>3 · Tech stack</h2>
+<div class="grid">
+  <div class="card"><h3>Agent runtime</h3><p>LangGraph <code>StateGraph</code> with
+  <code>create_agent</code> (ReAct) as one node. Middleware:
+  <code>ModelCallLimitMiddleware</code> plus a custom <code>ToolCallValidator</code>.</p></div>
+  <div class="card"><h3>LLM</h3><p>Anthropic API direct —
+  <code>claude-opus-5</code>, adaptive thinking, effort per purpose, prompt
+  caching on the stable prefix.</p></div>
+  <div class="card"><h3>Backend</h3><p>FastAPI + uvicorn, single async worker.
+  Streaming via <code>StreamingResponse</code> over chunked transfer.</p></div>
+  <div class="card"><h3>Client</h3><p>Vanilla HTML/CSS/JS in a CSS phone frame.
+  No build step. Charts are hand-rolled inline SVG — no chart library.</p></div>
+  <div class="card"><h3>Data</h3><p>Pydantic-validated JSON repository read once
+  at startup, behind a <code>TransactionRepository</code> port.</p></div>
+  <div class="card"><h3>Quality</h3><p>159 tests (stdlib <code>unittest</code>,
+  no key, no network), Ruff lint + format, GitHub Actions, Dockerfile.</p></div>
+</div>
+<h3>Deliberate omissions</h3>
+<ul>
+  <li><strong>No chart library.</strong> Six SVG renderers cost less than a
+  dependency and render identically in a screenshot.</li>
+  <li><strong>No DI framework.</strong> A 113-line composition root wires eight
+  singletons. <code>dependency-injector</code> would be more machinery than the
+  problem has.</li>
+  <li><strong>No SSE or WebSocket.</strong> Chunked NDJSON needs no long-lived
+  connection, survives proxies, and maps one line to one enum case on a native
+  client.</li>
+</ul>
+</section>
+
+<section id="backend">
+<h2>4 · Backend components</h2>
+<table>
+  <tr><th>Component</th><th>Responsibility</th><th>Why it exists</th></tr>
+  <tr><td><code>InsightService</code></td><td>every figure Penny states</td><td>one place where arithmetic happens, so it can be tested exhaustively</td></tr>
+  <tr><td>Tool catalog + registry</td><td>10 schemas, validate then dispatch</td><td>single source of truth; LangChain adapters are generated from it</td></tr>
+  <tr><td><code>PromptAssembler</code></td><td>versioned 3-part prompt</td><td>cache breakpoint after the stable prefix; version lands in every audit row</td></tr>
+  <tr><td><code>PennyChatRuntime</code></td><td>the LangGraph workflow</td><td>interleaves tool execution with component extraction</td></tr>
+  <tr><td><code>StreamingResponseHandler</code></td><td>raw text → validated components</td><td>shared by chat and greeting, so tolerance and validation exist once</td></tr>
+  <tr><td>Tolerant JSONL extractor</td><td>brace-counted parsing</td><td>models drop separators and emit stray prose; a naive split loses the turn</td></tr>
+  <tr><td>Component contract</td><td>server-side validation</td><td>a broken widget must never reach the client</td></tr>
+  <tr><td>Session repository</td><td>turns, 30-min TTL</td><td>history server-side, so a client cannot forge an earlier turn</td></tr>
+  <tr><td>Audit sink</td><td>append-only, fire-and-forget</td><td>compliance must never sit in the customer's latency path</td></tr>
+  <tr><td>Telemetry</td><td>OTel spans + stream metrics</td><td>TTFT, TTFC, tool durations, empty-response detection</td></tr>
+</table>
+<details><summary>The guards, and what each prevents</summary>
+<table>
+  <tr><th>Guard</th><th>Prevents</th></tr>
+  <tr><td><code>ModelCallLimitMiddleware</code></td><td>a runaway ReAct loop — ends the turn instead of raising</td></tr>
+  <tr><td><code>ToolCallValidator</code></td><td>hallucinated tool names and malformed arguments</td></tr>
+  <tr><td>request-scoped tool cache</td><td>paying twice for the same tool call in one turn</td></tr>
+  <tr><td>tolerant JSONL parser</td><td>one malformed line destroying an entire answer</td></tr>
+  <tr><td>component validation</td><td>an invalid chart or table reaching the UI</td></tr>
+</table>
+<p><code>ToolCallValidator</code> <em>returns</em> the refusal as a tool result
+rather than raising, so the model can read “that tool does not exist, here are
+the ones that do” and recover inside the same turn.</p>
+</details>
+</section>
+
+<section id="data">
+<h2>Data pipeline — Task 2</h2>
+<p>This is the section the whole agent rests on: clean data in, accurate answers
+out. Two decisions in it were forced by the dataset rather than chosen.</p>
+
+<h3>The dataset does not match its own description</h3>
+<p>The brief describes the provided file as “~310 transactions across four
+columns — <code>transaction_description</code>, <code>amount</code>,
+<code>date</code>, and <code>type</code> (credit/debit)”. The file that shipped
+is not that file.</p>
+<table>
+  <tr><th>Brief says</th><th>File actually contains</th><th>Consequence</th></tr>
+  <tr><td>~310 transactions</td><td><strong>300 rows</strong></td><td>none — cosmetic</td></tr>
+  <tr><td>four columns</td><td><strong>three</strong>: <code>transaction_description</code>, <code>amount</code>, <code>date</code></td><td>—</td></tr>
+  <tr><td><code>type</code> (credit/debit)</td><td><strong>absent</strong>; every amount is positive</td><td><strong>material</strong> — see below</td></tr>
+  <tr><td>“about six months”</td><td>2026-01-28 → 2026-07-28, 181 days (5.9 months)</td><td>accurate</td></tr>
+  <tr><td>“income such as salary deposits”</td><td>2 payroll deposits totalling $4,379.47</td><td>thin — see below</td></tr>
+</table>
+<div class="warn"><strong>Why the missing column mattered.</strong> With no
+<code>type</code> and every amount positive, the naive read is that all 300 rows
+are spending. That would fold two salary deposits and five inbound transfers into
+the spending total — inflating it by roughly $7,500 and corrupting every
+category share, every monthly comparison and the income ratio. So
+<code>direction</code> is <strong>inferred at enrichment</strong> from the
+descriptor, and <code>Transfers</code> and <code>Income</code> are excluded from
+spend by a domain predicate rather than by a filter at each call site.</div>
+<p>The consequence is visible in the recorded transcript: only <strong>2</strong>
+of 300 rows are Income-category credits, so Penny refuses to present an
+income-versus-spending ratio as a real savings rate and says why — the salary is
+almost certainly paid into another account. The caveat travels attached to the
+number, not left to the model's discretion.</p>
+
+<h3>Resolve descriptors, not transactions</h3>
+<p>The naive pipeline sends all 300 rows to the model. This one collapses them to
+distinct descriptors first, resolves those, then applies the result back across
+every row.</p>
+<div class="grid">
+  <div class="card"><h3>300 → 195</h3><p>rows to model decisions, by collapsing
+  digit runs only. <code>WALMART … 4471</code> and <code>WALMART … 8123</code> are
+  the same merchant; no brand text is ever altered, so the merge is lossless.</p></div>
+  <div class="card"><h3>Cached</h3><p>The resolved catalog is written to
+  <code>data/merchant_catalog.json</code> and reused, so a re-run costs nothing.
+  <code>--refresh</code> re-asks the model.</p></div>
+  <div class="card"><h3>Schema-constrained</h3><p><code>category</code> is a
+  <code>Literal</code> over a closed list, so the model cannot invent
+  <em>Restaurants</em> alongside <em>Dining</em> and silently split every
+  <code>GROUP BY</code>.</p></div>
+</div>
+<p>That is not a micro-optimisation — merchant identity is a property of the
+<em>descriptor</em>, not of the transaction. A bank re-deriving
+<code>SQ *BLUE BOTTLE</code> on every one of billions of rows is paying
+repeatedly for an answer it already has.</p>
+
+<h3>Coverage produced</h3>
+<table>
+  <tr><th>Field</th><th>Coverage</th><th>Purpose</th></tr>
+  <tr><td><code>merchant</code></td><td>300 / 300</td><td>customer-facing name</td></tr>
+  <tr><td><code>category</code></td><td>300 / 300</td><td>closed list of 16</td></tr>
+  <tr><td><code>direction</code></td><td>300 / 300 inferred</td><td>7 credits (2 Income, 5 Transfers)</td></tr>
+  <tr><td><code>logo_domain</code></td><td>265 / 300</td><td>merchant logos in the UI (bonus A)</td></tr>
+  <tr><td><code>city</code> / <code>region</code></td><td>136 / 300</td><td>location data, where the descriptor carries it</td></tr>
+  <tr><td><code>is_recurring</code></td><td>59 / 300</td><td>subscription candidate, later confirmed against observed cadence</td></tr>
+  <tr><td><code>confidence</code></td><td>300 / 300</td><td>self-reported, for spot-checking</td></tr>
+</table>
+<p>The prompt, verbatim, and the reasoning behind each field:
+<a href="enrichment-prompt.md"><code>docs/enrichment-prompt.md</code></a>.</p>
+<div class="note"><strong>A flagged recurring charge is not trusted on its own.</strong>
+Enrichment proposes <code>is_recurring</code> from the merchant's nature; the
+insight layer confirms it against behaviour — at least two charges, with a
+median gap that maps to a cadence. So a one-off purchase at a subscription
+merchant is never reported as a subscription.</div>
+</section>
+
+<section id="architecture">
+<h2>5 · System architecture</h2>
+<figure>
+  <img src="architecture.svg" alt="Animated architecture: a request travels from the phone client through FastAPI into the LangGraph runtime, which calls Claude, dispatches tools into the application layer and the enriched transaction repository, writes turns and audit records, and streams components back to the client; a separate offline chain along the bottom builds the dataset">
+  <figcaption><strong>Hexagonal layering, animated.</strong> Badges give the call
+  order, <strong>1</strong> to <strong>12</strong>, with <strong>a</strong> and
+  <strong>b</strong> as the outbound and return halves of one call. The two model
+  edges are each travelled twice, so they carry two numbers —
+  <strong>4a·9a</strong> out and <strong>4b·9b</strong> back: the first pass
+  chooses a tool, the second writes the answer once the figures return.
+  <strong>O1</strong>–<strong>O5</strong> is the offline pipeline;
+  <strong>W</strong> is wiring rather than data, drawn with hollow heads.
+  Dependencies point inward — the domain layer runs on the standard library
+  alone — and the tool call is drawn crossing the
+  <code>application/ports/</code> seam on its way to the adapter, because that is
+  the real call path: <code>InsightService</code> reaches the dataset through
+  <code>TransactionRepository</code>, never a concrete class. Two loops close:
+  the runtime asks prompt assembly for the three-part system prompt and sends it
+  on itself, and turns and audit records are written after the last byte then
+  read back by the initializer on the next turn, which is why a client cannot
+  forge history. Every figure the customer sees is computed in
+  <code>InsightService</code>, in deterministic Python, never by the model. The
+  olive chain along the bottom starts from the CSV supplied with the brief, runs
+  once, is committed, and never touches the request path.</figcaption>
+</figure>
+<p>The rule is enforced as a test, not a convention:
+<code>tests/architecture/test_dependency_rule.py</code> asserts that
+<code>domain/</code> imports no third-party package and that
+<code>application/</code> contains no framework import. A refactor that violates
+the layering fails CI.</p>
+</section>
+
+<section id="flow">
+<h2>6 · End-to-end flow</h2>
+<p>One turn, from keystroke to rendered component. Timings are from the recorded
+live run.</p>
+<figure>
+<img src="streaming-flow.svg" alt="One turn end to end, animated: request across the top, tools and data in the middle, streamed response along the bottom, each stage annotated with what it does and why it exists">
+<figcaption>One turn, annotated and animated on a 6 s loop. Indigo is the
+request, teal the return journey; a stage highlights as the work reaches it.
+Every box carries its own responsibility and the reason it exists. The boxed
+middle band is the only place in the system where a figure is computed, and the
+two-way arrow inside it is the tool call: a query goes out, matching rows come
+back, and the arithmetic happens in Python before the model sees it. Components
+render as they land, not after the turn completes.</figcaption>
+</figure>
+<div class="note"><strong>TTFC can be lower than TTFT.</strong> When a tool
+produces merchant cards, that component is generated server-side at tool
+completion — so it paints <em>before</em> the model's first token. Measured, not
+theorised: 2,076 ms against 3,164 ms in the recorded run.</div>
+</section>
+
+<section id="inventory">
+<h2>7 · Architecture components — what was actually built</h2>
+<table>
+  <tr><th>Layer</th><th>Modules</th><th>Contents</th></tr>
+  <tr><td><code>penny/domain/</code></td><td>5</td><td>Transaction with invariants, Period value object, closed taxonomy, errors carrying HTTP status. Standard library only.</td></tr>
+  <tr><td><code>penny/application/</code></td><td>25</td><td>ports (Protocols) · insights split by concern · component contract + presenters · greeting facts · prompt assembly · tool catalog and registry</td></tr>
+  <tr><td><code>penny/infrastructure/</code></td><td>21</td><td>LangGraph runtime · streaming handler + tolerant JSONL · model factory · persistence · telemetry · settings and model registry</td></tr>
+  <tr><td><code>penny/presentation/</code></td><td>6</td><td>FastAPI app factory · routes · identity middleware · request/response schemas</td></tr>
+  <tr><td><code>penny/composition/</code></td><td>2</td><td>the only module allowed to name a concrete class</td></tr>
+  <tr><td><code>eval/</code></td><td>8</td><td>three-phase evaluation: dataset, simulate, judge, analyze, report, runner</td></tr>
+  <tr><td><code>web/</code></td><td>3</td><td>phone frame, 12 component renderers, JSONL tokenizer</td></tr>
+  <tr><td><code>tests/</code></td><td>10</td><td>159 tests: domain, application, infrastructure, presentation, architecture rules</td></tr>
+</table>
+<h3>The component contract</h3>
+<p>Twelve component types plus an <code>unsupported</code> fallback. Every line of
+every response conforms to one, or is replaced:</p>
+<table>
+  <tr><th>Component</th><th>Required fields</th><th>Produced by</th></tr>
+  <tr><td><code>chat-response</code></td><td><code>body</code></td><td>model</td></tr>
+  <tr><td><code>table</code></td><td><code>headers</code>, <code>data</code></td><td>model</td></tr>
+  <tr><td><code>ordered-list</code> / <code>unordered-list</code></td><td><code>items</code></td><td>model</td></tr>
+  <tr><td><code>bar-chart</code> / <code>line-chart</code> / <code>pie-chart</code></td><td><code>valueTitle</code>, <code>labels</code>, <code>data</code></td><td>model</td></tr>
+  <tr><td><code>suggested-user-intents</code></td><td><code>intents</code></td><td>model</td></tr>
+  <tr><td><code>transaction-list</code></td><td><code>transactions</code></td><td><strong>server</strong> — from tool output, so merchant names cannot be mistyped</td></tr>
+  <tr><td><code>smart-loading</code></td><td><code>body</code></td><td><strong>server</strong> — fills the gap while tools run</td></tr>
+  <tr><td><code>try-again-error</code> · <code>feedback</code> · <code>done</code></td><td>—</td><td><strong>server</strong></td></tr>
+  <tr><td><code>unsupported</code></td><td><code>reason</code></td><td><strong>server</strong> — validation failure, or newer than the client</td></tr>
+</table>
+<p>The published OpenAPI document carries this as a discriminated union, so a
+consumer can generate a typed client. A test asserts the published
+discriminators equal the contract's keys, so the docs cannot drift from the
+wire.</p>
+</section>
+
+<section id="principles">
+<h2>8 · Design principles and considerations</h2>
+<details open><summary>Caveats travel with the data, not with the model's discretion</summary>
+<p>Tools that return an estimate ship a <code>caveat</code> or <code>method</code>
+string in the payload, and the prompt requires Penny to relay it. Honesty is
+enforced at the data layer — the model cannot quietly drop the qualifier on a
+projection, because the qualifier arrives attached to the number.</p></details>
+<details><summary>The boundary is structural, not textual</summary>
+<p>Penny cannot move money because <em>no tool exists that could</em>. A prompt
+instruction can be argued with; an absent capability cannot. The tool catalog is
+scanned by the validation suite for action verbs.</p></details>
+<details><summary>Anchored to the data, not the wall clock</summary>
+<p>The dataset ends 2026-07-28. Answering “this month” against the real calendar
+would return an empty result set and look like a bug. The data context tells the
+model which month is the last <em>complete</em> one and marks July partial — so
+totals are never quietly understated, and a month-over-month comparison against
+a partial tail is flagged.</p></details>
+<details><summary>Denominators are periods, not transaction spans</summary>
+<p>A weekly average divided by the gap between the first and last matching
+transaction silently changes with the data: two grocery trips in one week yields
+a “weekly average” over one week. The denominator is the calendar window, capped
+at the days of data actually available.</p></details>
+<details><summary>Tolerate imperfect model output</summary>
+<p>Models drop the newline separator, emit stray prose between objects, leave raw
+newlines inside strings, and get truncated mid-object. Splitting on
+<code>\n</code> and calling <code>json.loads</code> loses the whole turn. The
+parser brace-counts, repairs in-string control characters, discards what it
+cannot parse, and retains the incomplete tail for the next delta.</p></details>
+<details><summary>Cost discipline as a design property</summary>
+<p>The prompt's stable prefix carries a cache breakpoint, so follow-up turns read
+it from cache. Enrichment resolves <em>distinct descriptors</em> rather than rows
+— 300 rows become 195 model decisions — and caches the result, so a re-run costs
+nothing. Effort is set per purpose: <code>medium</code> for chat,
+<code>low</code> for the greeting, which only rephrases numbers Python computed.</p></details>
+<details><summary>Trade-off accepted: sentences, not tokens</summary>
+<p>Because a chunk is a complete component, text arrives per-sentence rather than
+per-token. That is the price of structured output, and <code>smart-loading</code>
+is what covers the wait. A token-streamed markdown blob would feel faster and
+render nothing structured.</p></details>
+</section>
+
+<section id="production">
+<h2>9 · Plan for integration in a real mobile banking app</h2>
+<h3>Native client</h3>
+<p>The phone frame here is a CSS mock, but the wire contract is already what a
+native client wants: newline-delimited JSON where each line is a complete UI
+component. A SwiftUI client consumes the chunked body, buffers it in an
+actor-isolated tokenizer that splits on <code>\n</code>, and decodes each line
+polymorphically on the <code>component</code> discriminator into an enum — one
+case per row of the contract, plus <code>.unsupported(raw)</code> so a component
+added after the app shipped renders as a placeholder instead of dropping the
+turn.</p>
+<ul>
+  <li>Actor-isolated buffer so parsing never races the UI; view models on the main actor; payload models <code>Sendable</code>.</li>
+  <li>Swift Charts for bar/line/pie; cached merchant logos; no markdown parsing on device.</li>
+  <li>Cancellation must reset the tokenizer buffer, or the next turn starts mid-object.</li>
+  <li>Dynamic Type and VoiceOver on every component, including chart summaries.</li>
+</ul>
+<h3>Scalability</h3>
+<ul>
+  <li>Sessions are per-process today, so scale is container count, not worker count. Move to a shared store (DynamoDB single-table, <code>PK=USER#{poid}</code>, <code>SK=SESSION#{id}</code> / <code>#TURN#{ts}</code>, TTL attribute) and the app becomes stateless. The zero-padded sort key is already in place.</li>
+  <li>Enrichment becomes a streaming pipeline over the bank's ledger — Batch API for backfill, per-transaction on the authorisation feed. The descriptor-level cache is what makes this affordable at billions of rows.</li>
+  <li>Insights move from an in-process list to queries against a columnar store — one new class behind the existing <code>TransactionRepository</code> port.</li>
+</ul>
+<h3>Security</h3>
+<ul>
+  <li><strong>The prototype verifies no tokens.</strong> It reads <code>Authorization</code> and <code>ext-user-profile-compressed</code>, derives a pseudonymous id and scopes sessions to it — a session id belonging to another customer is treated as absent — but there is no identity provider behind it. Real JWT + EUP verification is the first thing a deployment must add.</li>
+  <li>No PAN or account identifier may enter a prompt; tokenise before the LLM boundary.</li>
+  <li>The tool layer binds every query to the authenticated customer, so a prompt-injected request cannot cross accounts.</li>
+  <li>Insights-only is enforced by the absent capability, not by prompt text.</li>
+</ul>
+<h3>Observability</h3>
+<ul>
+  <li>OTel instrumentation exists; point the exporter at a collector.</li>
+  <li>Ship TTFT / TTFC and tool durations as SLIs with an error budget. Alert on <code>empty_response</code> rate and on turns hitting the model-call cap.</li>
+  <li>Every audit record carries the prompt version, so a behaviour change six months from now is attributable to a revision rather than to “the model drifted”.</li>
+</ul>
+<h3>Quality gates</h3>
+<p>The evaluation suite is the release gate: run it before and after any prompt
+change and treat a Risk regression as a blocker. Ground truth is computed from
+the same insight service the agent calls, so “accuracy” means <em>did it report
+what the data says</em>.</p>
+</section>
+
+<section id="evidence">
+<h2>Evidence &amp; validation</h2>
+<p>Nothing in this report is asserted from memory. Each claim has an artifact.</p>
+<table>
+  <tr><th>Artifact</th><th>What it proves</th></tr>
+  <tr><td><code>docs/requirements-validation.md</code></td><td>every brief line checked against the running app; machine-generated, exits non-zero on failure</td></tr>
+  <tr><td><code>docs/demo-transcript.md</code></td><td>seven live turns, 22 tool calls, verbatim</td></tr>
+  <tr><td><code>eval/out/report.html</code></td><td>Big 3 scoring with judge + analyst, raw and FP-adjusted</td></tr>
+  <tr><td><code>docs/API.md</code> + <code>openapi.json</code></td><td>the consumer contract, with client examples</td></tr>
+  <tr><td><code>docs/enrichment-prompt.md</code></td><td>the Task 2 prompt, verbatim, and why it is schema-constrained</td></tr>
+  <tr><td>159 tests</td><td>parser edge cases, contract validation, guards, sessions, layering rules</td></tr>
+</table>
+<h3>Evaluation design</h3>
+<p>Three phases: <strong>simulate</strong> against the live agent,
+<strong>judge</strong> every answer on Accuracy / Helpfulness / Risk with a cheap
+model, then <strong>analyse</strong> only the low scores with a stronger model,
+which labels each <code>FALSE_POSITIVE</code> or <code>GAP</code>.</p>
+<div class="note">The FP/GAP split is why there are two models. A single judge
+produces a number you cannot act on: a 2/5 could mean the agent was wrong or the
+grader was. Re-reading only the failures is cheap and turns the score into a
+list of things to fix.</div>
+</section>
+
+<section id="status">
+<h2>Done, not done, and what I would do next</h2>
+<h3>Complete and verified live</h3>
+<ul>
+  <li>All four core tasks; both bonus tracks.</li>
+  <li>Enrichment: 300/300 rows — merchant 300, logos 265, location 136, recurring 59.</li>
+  <li>Live agent: tool calling, multi-turn memory, streamed components, honest refusals.</li>
+  <li>159 tests, lint clean, layering enforced by test.</li>
+</ul>
+<h3>Built but not verified</h3>
+<div class="warn"><strong>The Dockerfile and CI workflow have never been
+executed.</strong> Docker was unavailable in the build environment. They are
+plausible but unproven, and I would rather say so than imply a green build.</div>
+<h3>Deliberately not built</h3>
+<table>
+  <tr><th>Not built</th><th>Why</th></tr>
+  <tr><td>Native iOS client</td><td>the brief asks for a phone <em>mock</em>, not a production native app</td></tr>
+  <tr><td>Deep links / agent-driven navigation</td><td>appears only in the reference video, and only to confirm an account action the brief rules out</td></tr>
+  <tr><td>DynamoDB, S3 WORM, ECS, Secrets Manager</td><td>needs an account and earns no marks; the ports are in place so each is one class</td></tr>
+  <tr><td>70+ categories</td><td>16 suffice for 300 rows; the brief requires “a spending category”</td></tr>
+</table>
+<h3>Next, with more time</h3>
+<ol>
+  <li><strong>Run the full 14-case eval.</strong> Only a 4-case smoke has run; the hard and refusal cases are where a real Risk number would come from.</li>
+  <li><strong>Fix one prompt weakness found in the transcript.</strong> A June-vs-May comparison rendered a single-series chart of May values with no indication which month they were — the format prompt explains multi-series charts but never says to use two series when comparing two periods.</li>
+  <li><strong>Make the <code>unsupported</code> placeholder customer-safe.</strong> It currently shows developer text (“unknown component 'sankey-diagram'”). Keep the mechanism, log the reason, show the customer something neutral.</li>
+  <li><strong>Verify the container.</strong> Build the image, run the health check, execute the CI workflow once.</li>
+  <li><strong>Widen enrichment coverage.</strong> 35 of 300 rows have no logo domain and 164 no location; a second pass over just those would lift both.</li>
+</ol>
+</section>
+</main>
+
+<script>
+// Highlight the section currently in view.
+const links = [...document.querySelectorAll('.side-nav a')];
+const sections = links.map(a => document.querySelector(a.hash)).filter(Boolean);
+const spy = new IntersectionObserver(entries => {
+  entries.forEach(entry => {
+    if (!entry.isIntersecting) return;
+    links.forEach(a => a.classList.toggle('on', a.hash === '#' + entry.target.id));
+  });
+}, { rootMargin: '-15% 0px -75% 0px' });
+sections.forEach(s => spy.observe(s));
+</script>
+</body>
+</html>
