@@ -68,6 +68,15 @@ parsing it once.
 The stack mirrors a production conversational-banking system, layer for layer,
 scaled to what a prototype over a 300-row CSV can honestly support.
 
+![Penny architecture: client, HTTP, application, agent runtime, LLM, persistence, and the offline enrichment pipeline](docs/architecture.svg)
+
+*Hexagonal layering — dependencies point inward, and the domain layer runs on
+the standard library alone. Nothing crosses a boundary except through a
+`Protocol` in `penny/application/ports/`. The diagram animates; if your viewer
+renders it statically, `docs/architecture.png` is the same picture.*
+
+The same nine layers as plain text, for terminals and diffs:
+
 ```
 ┌───────────────────────────────────────────────────────────────────┐
 │ Layer 1  CLIENT — web/ (phone frame, component renderers)         │
@@ -153,6 +162,14 @@ never retypes a merchant name or an amount. `smart-loading` fills the gap while
 tools run; tool calls are internal to the server.
 
 ### The workflow
+
+![One turn end to end: request across the top, tools and data in the middle, streamed response along the bottom](docs/streaming-flow.svg)
+
+*One turn, from keystroke to rendered component. Indigo is the request, teal the
+return journey; the boxed middle band is the only place in the system where a
+figure is computed. Measured live: first token ~3.2 s, but the first complete
+component lands at ~2.1 s — merchant cards reach the screen before the model's
+first word, because the server emits them the moment a tool returns.*
 
 `penny/infrastructure/llm/chat_runtime.py` compiles a LangGraph `StateGraph`:
 
