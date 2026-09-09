@@ -11,6 +11,29 @@ does the arithmetic herself, and she never sees the full transaction file.
 
 ---
 
+## 📊 Start here — the Build Report
+
+**[`docs/build-report.html`](docs/build-report.html)** is the complete write-up
+of this build, and the best single place to start: executive summary, the full
+user-story coverage table, tech stack, backend components, system architecture,
+the end-to-end flow, design principles, and the plan for integrating this into a
+real mobile banking app with production hardening.
+
+It is one self-contained file — both architecture diagrams are embedded, so it
+renders anywhere with no assets alongside it:
+
+```bash
+git clone https://github.com/iMuks/Zafin-pfm-agent.git
+open Zafin-pfm-agent/docs/build-report.html      # macOS
+# xdg-open on Linux, start on Windows
+```
+
+> GitHub cannot render HTML in the browser from a repository view — clone and
+> open it locally, or download the raw file. Everything below is the practical
+> README: what to install, how to run it, and how the system is put together.
+
+---
+
 ## Quick start
 
 ```bash
