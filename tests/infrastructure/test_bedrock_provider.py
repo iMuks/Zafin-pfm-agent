@@ -97,16 +97,21 @@ class Factory(unittest.TestCase):
         self.assertIsNone(structured.additional_model_request_fields)
 
     def test_a_public_endpoint_never_produces_a_client(self):
-        with _bedrock_settings(PENNY_BEDROCK_ENDPOINT_URL=PUBLIC):
-            with self.assertRaises(RemoteModelForbiddenError):
-                chat_model("chat", override="bedrock-sonnet")
+        with (
+            _bedrock_settings(PENNY_BEDROCK_ENDPOINT_URL=PUBLIC),
+            self.assertRaises(RemoteModelForbiddenError),
+        ):
+            chat_model("chat", override="bedrock-sonnet")
 
     def test_no_api_key_is_required_for_bedrock(self):
         from penny.composition.container import Container
 
-        with _bedrock_settings(), mock.patch.dict("os.environ", {"ANTHROPIC_API_KEY": ""}):
-            with mock.patch(
+        with (
+            _bedrock_settings(),
+            mock.patch.dict("os.environ", {"ANTHROPIC_API_KEY": ""}),
+            mock.patch(
                 "penny.composition.container.resolve_model",
                 return_value=mock.Mock(provider="bedrock"),
-            ):
-                Container._require_credentials("chat")  # must not raise
+            ),
+        ):
+            Container._require_credentials("chat")  # must not raise
