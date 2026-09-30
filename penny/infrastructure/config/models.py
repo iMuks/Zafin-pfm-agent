@@ -20,6 +20,11 @@ from penny.infrastructure.config.settings import Effort, settings
 
 Purpose = Literal["chat", "greeting", "judge", "analyst"]
 
+#: Where a model runs. `anthropic` calls the Anthropic API. `local` calls an
+#: OpenAI-compatible endpoint inside the deployment (Ollama on a laptop, vLLM in
+#: the VPC); nothing leaves the boundary, which is the product's privacy rule.
+Provider = Literal["anthropic", "local"]
+
 
 class ModelEntry(BaseModel):
     """One model this application is permitted to call."""
@@ -28,6 +33,7 @@ class ModelEntry(BaseModel):
     model_config = ConfigDict(protected_namespaces=())
 
     model_id: str
+    provider: Provider = "anthropic"
     max_tokens: int = 8000
     effort: Effort = "medium"
     #: Not every model accepts `output_config.effort`. Haiku 4.5 rejects it with
@@ -44,6 +50,23 @@ MODEL_REGISTRY: dict[str, ModelEntry] = {
     "sonnet5": ModelEntry(model_id="claude-sonnet-5", max_tokens=8000, effort="medium"),
     "haiku45": ModelEntry(
         model_id="claude-haiku-4-5", max_tokens=4000, effort="low", supports_effort=False
+    ),
+    # Open-weights models served locally. Ids are Ollama tags; the same entries
+    # work against vLLM when the served model is registered under the same name.
+    # Effort is not a parameter these endpoints accept; reasoning is a property
+    # of the model (qwen3 thinks by default and returns it separately).
+    "local-qwen3-4b": ModelEntry(
+        model_id="qwen3:4b", provider="local", max_tokens=4000, effort="low", supports_effort=False
+    ),
+    "local-qwen3-8b": ModelEntry(
+        model_id="qwen3:8b", provider="local", max_tokens=4000, effort="low", supports_effort=False
+    ),
+    "local-qwen25-7b": ModelEntry(
+        model_id="qwen2.5:7b",
+        provider="local",
+        max_tokens=4000,
+        effort="low",
+        supports_effort=False,
     ),
 }
 
@@ -72,3 +95,46 @@ def resolve_model(purpose: Purpose, override: str | None = None) -> ModelEntry:
         or MODEL_REGISTRY[DEFAULT_KEY]
     )
     return entry.model_copy(update={"effort": effort})
+
+
+# -- enclave guard ----------------------------------------------------------
+
+_PRIVATE_SUFFIXES = (".local", ".internal", ".svc", ".cluster.local")
+
+
+def _host_is_private(url: str) -> bool:
+    """True when the URL points at this machine or a private network.
+
+    Loopback, RFC 1918 and link-local addresses, `localhost`, and the DNS
+    suffixes cloud providers use for in-VPC services. Anything else is treated
+    as public and refused unless the operator overrides it explicitly.
+    """
+    import ipaddress
+    from urllib.parse import urlparse
+
+    host = (urlparse(url).hostname or "").lower()
+    if not host:
+        return False
+    if host == "localhost" or host.endswith(_PRIVATE_SUFFIXES):
+        return True
+    try:
+        address = ipaddress.ip_address(host)
+    except ValueError:
+        return False
+    return address.is_loopback or address.is_private or address.is_link_local
+
+
+def enforce_enclave(model_id: str, base_url: str, *, allow_public_host: bool = False) -> None:
+    """Refuse any local-provider configuration that would leave the boundary."""
+    from penny.domain.errors import RemoteModelForbiddenError
+
+    if ":cloud" in model_id or model_id.endswith("-cloud"):
+        raise RemoteModelForbiddenError(
+            f"{model_id!r} is a hosted model that runs on the vendor's servers"
+        )
+    if not allow_public_host and not _host_is_private(base_url):
+        raise RemoteModelForbiddenError(
+            f"endpoint {base_url!r} is not a loopback or private-network host "
+            "(set PENNY_LOCAL_ALLOW_PUBLIC_HOST=true only for a private endpoint "
+            "reached through a public hostname)"
+        )

@@ -38,6 +38,23 @@ class Settings(BaseSettings):
     judge_effort: Effort = "low"
     analyst_effort: Effort = "medium"
 
+    # --- local model endpoint (provider = "local") ------------------------
+    #: OpenAI-compatible endpoint inside the deployment. Ollama's default on a
+    #: laptop; a vLLM service address in the VPC. Must be loopback or private.
+    local_base_url: str = Field(
+        default="http://127.0.0.1:11434/v1",
+        description="OpenAI-compatible endpoint for local-provider models.",
+    )
+    #: The client library requires a key; local servers ignore it.
+    local_api_key: str = Field(default="local", description="Placeholder key for local servers.")
+    local_timeout_seconds: float = Field(
+        default=300.0, gt=0, description="Per-call timeout for the local endpoint."
+    )
+    local_allow_public_host: bool = Field(
+        default=False,
+        description="Permit a non-private hostname for the local endpoint (private link via DNS).",
+    )
+
     # --- guards ----------------------------------------------------------
     max_model_calls: int = Field(
         default=8, ge=1, le=25, description="Model calls per request before the agent must wrap up."

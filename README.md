@@ -69,6 +69,26 @@ ANTHROPIC_API_KEY=sk-ant-...
 `.env` is gitignored; `.env.example` only ever holds a placeholder. Nothing else
 needs configuring — every other setting has a working default.
 
+### 3b · Or run with a local model, no API key
+
+Every model call can stay on your own machine. Install [Ollama](https://ollama.com), pull an open-weights model, and point Penny at it:
+
+```bash
+ollama pull qwen3:4b                 # ~2.5 GB; qwen3:8b is better if you have the memory
+ollama serve                         # OpenAI-compatible endpoint on http://127.0.0.1:11434/v1
+```
+
+Then in `.env`, select the local registry keys and leave `ANTHROPIC_API_KEY` unset:
+
+```bash
+PENNY_MODEL_KEY=local-qwen3-4b
+PENNY_GREETING_MODEL_KEY=local-qwen3-4b
+PENNY_JUDGE_MODEL_KEY=local-qwen3-4b
+PENNY_ANALYST_MODEL_KEY=local-qwen3-4b
+```
+
+The local provider refuses any endpoint that is not a loopback or private-network host, and any Ollama `:cloud` model tag, so a misconfiguration fails at startup instead of sending data out. `GET /api/health` reports `provider` and `endpoint`. In production the same keys point at a vLLM service inside the VPC via `PENNY_LOCAL_BASE_URL`.
+
 ### 4 · Start the app
 
 ```bash
@@ -123,6 +143,7 @@ python scripts/validate_requirements.py --port 8000
 
 Checks every line of the brief against the live app and writes
 `docs/requirements-validation.md`. Exits non-zero if anything regressed.
+Unlike step 7, this makes four live model calls, so it costs a few cents.
 
 ### 9 · Optional — the eval suite and the report
 

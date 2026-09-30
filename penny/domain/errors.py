@@ -25,8 +25,25 @@ class MissingCredentialsError(PennyError):
 
     def __init__(self) -> None:
         super().__init__(
-            "ANTHROPIC_API_KEY is not set. Copy .env.example to .env and add your key."
+            "ANTHROPIC_API_KEY is not set. Copy .env.example to .env and add your key, "
+            "or select a local model (PENNY_MODEL_KEY=local-qwen3-4b) to run without one."
         )
+
+
+class RemoteModelForbiddenError(PennyError):
+    """The enclave rule: a `local` model must be served from inside the deployment.
+
+    Raised when a local-provider entry names a model that would run elsewhere
+    (an Ollama `:cloud` model, for example) or when the configured endpoint is
+    not a loopback or private-network host. This is a configuration error and it
+    is fatal on purpose: silently falling back to a remote model would send
+    customer data outside the boundary the product promises.
+    """
+
+    status_code = 503
+
+    def __init__(self, reason: str) -> None:
+        super().__init__(f"Refusing a model that would run outside the enclave: {reason}")
 
 
 class InvalidTransactionError(PennyError):

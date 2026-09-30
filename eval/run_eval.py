@@ -15,8 +15,10 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import json
 import time
 from pathlib import Path
+from typing import Any
 
 from dotenv import load_dotenv
 
@@ -33,6 +35,13 @@ from penny.infrastructure.config.models import resolve_model  # noqa: E402
 from penny.infrastructure.observability.telemetry import setup  # noqa: E402
 
 
+def _checkpoint(out_dir: Path, name: str, payload: Any) -> None:
+    out_dir.mkdir(parents=True, exist_ok=True)
+    (out_dir / name).write_text(
+        json.dumps(payload, indent=2, default=lambda o: o.model_dump()), encoding="utf-8"
+    )
+
+
 async def run(limit: int | None, concurrency: int, out_dir: Path) -> EvalRun:
     setup()
     # Ground truth comes from the same insight service the agent's tools call.
@@ -42,12 +51,22 @@ async def run(limit: int | None, concurrency: int, out_dir: Path) -> EvalRun:
 
     print(f"[1/3] simulation  — {len(cases)} cases against {resolve_model('chat').model_id}")
     simulations = await simulation.simulate(cases, concurrency)
+    # Checkpoint each phase: a judge or analyst stall must never cost the
+    # simulations already paid for. `simulations.json` is also enough for the
+    # model-free cross-check in eval/verify_numbers.py.
+    await asyncio.to_thread(_checkpoint, out_dir, "simulations.json", simulations)
     failed = [s.case_id for s in simulations if s.error]
     if failed:
         print(f"      {len(failed)} case(s) errored: {', '.join(failed)}")
 
     print(f"[2/3] evaluation  — judging with {resolve_model('judge').model_id}")
     verdicts = await judging.judge(cases, simulations, concurrency)
+    await asyncio.to_thread(
+        _checkpoint,
+        out_dir,
+        "verdicts.json",
+        {k: (v.model_dump() if isinstance(v, Verdict) else v) for k, v in verdicts.items()},
+    )
 
     low = sum(
         1

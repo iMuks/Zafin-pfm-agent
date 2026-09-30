@@ -132,6 +132,8 @@ def health() -> dict[str, Any]:
     return {
         "status": "ok",
         "model": entry.model_id,
+        "provider": entry.provider,
+        "endpoint": cfg.local_base_url if entry.provider == "local" else None,
         "effort": entry.effort,
         "prompt_version": cfg.prompt_version,
         "api_key_configured": bool(os.getenv("ANTHROPIC_API_KEY")),

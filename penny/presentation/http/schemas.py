@@ -90,7 +90,13 @@ class CoverageSummary(BaseModel):
 
 class HealthResponse(BaseModel):
     status: Literal["ok"]
-    model: str = Field(description="Resolved Anthropic model id for the chat agent.")
+    model: str = Field(description="Resolved model id for the chat agent.")
+    provider: Literal["anthropic", "local"] = Field(
+        description="Where the chat model runs: the Anthropic API, or an endpoint inside the deployment."
+    )
+    endpoint: str | None = Field(
+        default=None, description="The local endpoint in use when provider is local."
+    )
     effort: str = Field(description="Reasoning effort in force for chat.")
     prompt_version: str = Field(description="Stamped into every audit record.")
     api_key_configured: bool

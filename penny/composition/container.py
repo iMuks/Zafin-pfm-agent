@@ -27,6 +27,7 @@ from penny.application.ports.transactions import TransactionRepository
 from penny.application.tools.catalog import build_catalog
 from penny.application.tools.registry import ToolRegistry
 from penny.domain.errors import MissingCredentialsError
+from penny.infrastructure.config.models import Purpose, resolve_model
 from penny.infrastructure.config.settings import settings
 from penny.infrastructure.observability.audit_log import FileAuditSink
 from penny.infrastructure.persistence.json_transactions import JsonTransactionRepository
@@ -87,18 +88,22 @@ class Container:
     # -- runtimes ---------------------------------------------------------
 
     @staticmethod
-    def _require_credentials() -> None:
+    def _require_credentials(purpose: Purpose) -> None:
         """Checked at construction, so request handlers stay unaware of it.
 
         An injected stub never reaches this path, which is exactly why the
-        component gallery runs with no API key at all.
+        component gallery runs with no API key at all. A local-provider model
+        needs no key: its endpoint is inside the deployment, and the enclave
+        guard in the model factory is what checks it.
         """
+        if resolve_model(purpose).provider == "local":
+            return
         if not os.getenv("ANTHROPIC_API_KEY"):
             raise MissingCredentialsError
 
     def chat_runtime(self) -> AgentRuntime:
         if self._chat is None:
-            self._require_credentials()
+            self._require_credentials("chat")
             # Imported here rather than at module scope: LangGraph is a heavy
             # import, and nothing that only reads data should pay for it.
             from penny.infrastructure.llm.chat_runtime import PennyChatRuntime
@@ -113,7 +118,7 @@ class Container:
 
     def greeting_runtime(self) -> GreetingRuntime:
         if self._greeting is None:
-            self._require_credentials()
+            self._require_credentials("greeting")
             from penny.infrastructure.llm.greeting_runtime import PennyGreetingRuntime
 
             self._greeting = PennyGreetingRuntime(
