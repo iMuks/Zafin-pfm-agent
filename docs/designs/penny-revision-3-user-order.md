@@ -1771,6 +1771,28 @@ Plan is design-complete for the 1a surfaces (every rated pass 9 or 10). Run /des
 ### Unresolved design decisions (revision 3)
 None. The response-side notice copy is a recorded 1b refinement in TODOS.md, not an open decision.
 
+## Revision 4 addendum: live bank linking, on-the-fly sync (founder decisions, 2026-09-30)
+
+Founder's words: "all I want to connect to my bank accounts so that I know where all transactions are going, how much I am spending day to day"; "this is critical to scale the app to end customer"; "on the fly should sync rather than any time interval". Decisions: D1 = C (both tracks), and event-driven sync with no polling interval.
+
+### What changes
+
+1. **Bank linking is a 1a item, ahead of file upload.** A customer links a bank in one tap; transactions arrive without exports. File upload stays as the fallback for institutions the link cannot reach.
+2. **Aggregator adapter now (supersedes first doc R7, D9 = A).** `AggregatorAdapter` implements the existing `SourceAdapter` port (`discover`, `pull(since_cursor)`, `subscribe`) for Flinks or Plaid (choice at implementation, on Canadian coverage and sandbox terms). The enclave rule is amended, by the founder: a bank aggregator may be in the fetch path only with the customer's explicit consent on a consent screen that names the aggregator and what it sees, with the aggregator's data retention set to the minimum it offers, and never for any other purpose. Nothing else changes: no tenant data to any other party, per-tenant catalog, Bedrock in the founder's account.
+3. **Open banking rail track starts now.** Accreditation as a data recipient under Canada's consumer-driven banking framework (FDX standard) is the founder's paperwork, started in parallel. `OpenBankingAdapter` implements the same port when the rail is live; the aggregator is then retired per institution. The Assignment gains one line: start the accreditation application.
+4. **Sync is event-driven, never on a timer.** Triggers, in order of arrival: (a) the aggregator's webhook that new transactions are available for an item, (b) the customer opening the app or pulling to refresh, which requests an on-demand refresh from the aggregator and pulls when it completes, (c) a re-authorization completing. Each trigger inserts one pull job for the affected account; the worker pulls with the cursor, reconciles, commits a new `sync_version`, and publishes a `snapshot.committed` event. The first doc's five-minute poll tick is removed for linked banks; drift reviews and backfill run only as a consequence of a pull, not on a schedule. Honest limit: Penny adds no delay of its own, but the bank posts transactions on its own timing and the aggregator relays them when the bank exposes them; "day to day" is the promise, not "the second the card is tapped".
+5. **The client learns instantly.** `GET /events` is a server-sent-events stream per signed-in tenant carrying `snapshot.committed {version, coverage}` and `source.state {account, state}`; the web client updates the as-of line and the run list without reload; iOS uses the same stream in the foreground and push in the background (iOS lane). Freshness metric unchanged: webhook receipt to committed snapshot under 60 s; source lag reported separately.
+6. **States that moved from 1b into 1a:** account link proposed (D15 wording reused for a linked account: "This looks like RBC Chequing, ending 4321"), needs_reauth and Reconnect (R8), the aggregator consent screen, and the source row for a linked bank ("Linked · synced 2 min ago"). The minimal connect view (RED-1) gains a "Link a bank" button above the upload form; the polished versions stay in 1b.
+7. **Milestone 0 gains** the aggregator sandbox credentials in Secrets Manager, an allow-listed egress to the aggregator's API host (the only outbound besides Cognito JWKS and Bedrock), and a public webhook route on the ALB with signature verification.
+
+### Sequence for 1a after this addendum
+
+ledger (E3, T3 to T6) → `SourceAdapter` port with a fake in-memory aggregator for fixtures → job table and worker (moved up from 1b) with the three event triggers → aggregator adapter against the sandbox → consent screen, link flow, needs_reauth → `/events` stream → file upload as fallback (items 3 and 4) → cut tools and weekly review (items 6 and 7). Estimate: roughly +2 weeks human / +2 days CC on 1a for the job table, adapter, consent, webhook and events.
+
+### Reviews affected
+
+The CEO, eng and design reviews above were run on revision 3 before this addendum. Affected findings: eng Section 1 (single BackgroundTask: the job table now lands in 1a), design DR-3 (run list gains linked-bank rows with a synced-ago line), CEO Section 3 (new webhook surface: signature verification, replay protection, idempotent job insert). A short eng review of the adapter, worker and webhook is due before they are built; the rest stands.
+
 ## GSTACK REVIEW REPORT
 
 | Review | Trigger | Why | Runs | Status | Findings |

@@ -64,4 +64,16 @@
 **Priority:** P3
 **Depends on:** REV-3 shipped in 1a.
 
+### Open banking accreditation (Canada consumer-driven banking)
+
+**What:** Apply for accreditation as a data recipient under Canada's consumer-driven banking framework; implement `OpenBankingAdapter` (FDX) on the `SourceAdapter` port when the rail is live; retire the aggregator per institution.
+
+**Why:** Removes the consented third party from the fetch path, restoring the strict enclave rule for linked banks.
+
+**Context:** docs/designs/penny-revision-3-user-order.md, Revision 4 addendum (D1 = C, 2026-09-30). Founder's paperwork; code is one adapter on the existing port.
+
+**Effort:** M (paperwork L, founder's time)
+**Priority:** P2
+**Depends on:** Rail launch and accreditation decision.
+
 ## Completed
