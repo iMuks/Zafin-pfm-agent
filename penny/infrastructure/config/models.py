@@ -12,6 +12,7 @@ Two ideas worth keeping from production systems that run several models at once:
 
 from __future__ import annotations
 
+import re
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict
@@ -23,7 +24,9 @@ Purpose = Literal["chat", "greeting", "judge", "analyst"]
 #: Where a model runs. `anthropic` calls the Anthropic API. `local` calls an
 #: OpenAI-compatible endpoint inside the deployment (Ollama on a laptop, vLLM in
 #: the VPC); nothing leaves the boundary, which is the product's privacy rule.
-Provider = Literal["anthropic", "local"]
+#: `bedrock` calls Claude through Amazon Bedrock inside the founder's own AWS
+#: account, reached only through a VPC interface endpoint.
+Provider = Literal["anthropic", "local", "bedrock"]
 
 
 class ModelEntry(BaseModel):
@@ -64,6 +67,23 @@ MODEL_REGISTRY: dict[str, ModelEntry] = {
     "local-qwen25-7b": ModelEntry(
         model_id="qwen2.5:7b",
         provider="local",
+        max_tokens=4000,
+        effort="low",
+        supports_effort=False,
+    ),
+    # Claude on Bedrock in the founder's account. The inference profile ids come
+    # from settings because they are fixed by the region and the model-access
+    # grant, not by this code. Effort is not a Converse parameter.
+    "bedrock-sonnet": ModelEntry(
+        model_id=settings().bedrock_chat_model_id,
+        provider="bedrock",
+        max_tokens=8000,
+        effort="medium",
+        supports_effort=False,
+    ),
+    "bedrock-haiku": ModelEntry(
+        model_id=settings().bedrock_small_model_id,
+        provider="bedrock",
         max_tokens=4000,
         effort="low",
         supports_effort=False,
@@ -122,6 +142,43 @@ def _host_is_private(url: str) -> bool:
     except ValueError:
         return False
     return address.is_loopback or address.is_private or address.is_link_local
+
+
+_BEDROCK_VPCE = re.compile(r"^vpce-[a-z0-9-]+\.bedrock-runtime\.(?P<region>[a-z0-9-]+)\.vpce\.amazonaws\.com$")
+
+
+def enforce_bedrock_enclave(
+    endpoint_url: str, region: str, *, allow_public_endpoint: bool = False
+) -> None:
+    """Refuse a Bedrock configuration that would leave the VPC.
+
+    The runtime endpoint must be the interface endpoint's own DNS name for the
+    configured region. The public `bedrock-runtime.<region>.amazonaws.com` name
+    is refused even though private DNS can resolve it inside the VPC: the guard
+    must not depend on DNS state to keep customer data on the private path.
+    """
+    from urllib.parse import urlparse
+
+    from penny.domain.errors import RemoteModelForbiddenError
+
+    if allow_public_endpoint:
+        return
+    host = (urlparse(endpoint_url).hostname or "").lower()
+    if not host:
+        raise RemoteModelForbiddenError(
+            "PENNY_BEDROCK_ENDPOINT_URL is not set; Bedrock must be reached through the VPC "
+            "interface endpoint (vpce-....bedrock-runtime.<region>.vpce.amazonaws.com)"
+        )
+    match = _BEDROCK_VPCE.match(host)
+    if match is None:
+        raise RemoteModelForbiddenError(
+            f"Bedrock endpoint {host!r} is not a VPC interface endpoint DNS name"
+        )
+    if match.group("region") != region:
+        raise RemoteModelForbiddenError(
+            f"Bedrock endpoint {host!r} is in region {match.group('region')!r}, "
+            f"not the configured {region!r}"
+        )
 
 
 def enforce_enclave(model_id: str, base_url: str, *, allow_public_host: bool = False) -> None:

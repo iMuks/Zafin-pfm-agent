@@ -16,6 +16,11 @@ class AuditRecord:
     tools_called: tuple[str, ...]
     model_id: str | None
     prompt_version: str
+    #: What happened: a normal `chat_turn`, or an event such as
+    #: `guardrail_blocked`. Events carry no query or answer text.
+    kind: str = "chat_turn"
+    #: An external reference for an event (a Bedrock request id), never content.
+    reference: str | None = None
 
 
 @runtime_checkable

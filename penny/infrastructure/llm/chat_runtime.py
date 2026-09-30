@@ -24,7 +24,7 @@ from langgraph.graph import END, START, StateGraph
 from langgraph.graph.message import add_messages
 
 from penny.application.components.contract import is_component_object
-from penny.application.components.presenters import done, try_again_error
+from penny.application.components.presenters import done, notice, try_again_error
 from penny.application.conversation.prompts.assembler import PromptAssembler
 from penny.application.ports.agents import AgentRuntime
 from penny.application.ports.audit import AuditRecord, AuditSink
@@ -33,7 +33,11 @@ from penny.application.tools.registry import ToolRegistry
 from penny.infrastructure.config.settings import settings
 from penny.infrastructure.llm.middleware import ToolCallValidator
 from penny.infrastructure.llm.model_factory import chat_model
-from penny.infrastructure.llm.streaming.handler import components_from_events, text_of
+from penny.infrastructure.llm.streaming.handler import (
+    components_from_events,
+    guardrail_assessment,
+    text_of,
+)
 from penny.infrastructure.llm.streaming.jsonl import extract_json_objects
 from penny.infrastructure.llm.tool_adapter import build_tools
 from penny.infrastructure.observability.context import require_context
@@ -75,6 +79,14 @@ def answer_text(messages: list[AnyMessage]) -> str:
             # losing the turn entirely is worse than storing an off-format one.
             return raw.strip()
     return ""
+
+
+def _guardrail_stopped(messages: list[AnyMessage]) -> bool:
+    """True when the last model message carries Bedrock's intervention stop reason."""
+    for message in reversed(messages):
+        if isinstance(message, AIMessage):
+            return guardrail_assessment(message) is not None
+    return False
 
 
 class PennyChatRuntime(AgentRuntime):
@@ -143,7 +155,14 @@ class PennyChatRuntime(AgentRuntime):
     async def _persist(self, state: ChatState) -> dict[str, Any]:
         ctx = require_context()
         session_id = state["session_id"]
-        answer = answer_text(list(state.get("messages", [])))
+        messages = list(state.get("messages", []))
+        if _guardrail_stopped(messages):
+            # Neither turn is kept: the canned text Bedrock substituted is not
+            # Penny's answer, and replaying the blocked question would put it
+            # in front of the model again. `stream` records the event itself.
+            log("graph.persist_skipped", reason="guardrail_intervened")
+            return {}
+        answer = answer_text(messages)
 
         self._sessions.append_turn(session_id, "user", state["query"])
         if answer:
@@ -180,6 +199,29 @@ class PennyChatRuntime(AgentRuntime):
             events = self._graph.astream_events(state, version="v2")
             async for component in components_from_events(events, telemetry):
                 yield component
+
+            if telemetry.guardrail_intervened:
+                # Guardrails stopped the prompt or the response. The customer
+                # sees one fixed line; the audit trail records that it happened
+                # and the Bedrock request id, never the content (REV-3).
+                self._audit.record(
+                    AuditRecord(
+                        request_id=ctx.request_id,
+                        session_id=session_id,
+                        poid=ctx.poid,
+                        client_query="",
+                        ai_response="",
+                        tools_called=tuple(ctx.tools_called),
+                        model_id=ctx.model_id,
+                        prompt_version=self._prompts.version,
+                        kind="guardrail_blocked",
+                        reference=telemetry.guardrail_assessment,
+                    )
+                )
+                telemetry.emit("guardrail_blocked")
+                yield notice()
+                yield done(telemetry.summary())
+                return
 
             if telemetry.empty_response:
                 # The turn produced nothing renderable. Say so, rather than

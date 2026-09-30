@@ -128,6 +128,14 @@ class StreamTelemetry:
     tool_ms: dict[str, float] = field(default_factory=dict)
     dropped_lines: int = 0
     model_id: str | None = None
+    #: Set when Bedrock Guardrails stopped the turn. The value is the Bedrock
+    #: request id, which is how the assessment is found in the account's logs;
+    #: the blocked content itself is never recorded.
+    guardrail_assessment: str | None = None
+
+    @property
+    def guardrail_intervened(self) -> bool:
+        return self.guardrail_assessment is not None
 
     def _elapsed(self) -> float:
         return (time.perf_counter() - self.started) * 1000

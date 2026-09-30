@@ -9,6 +9,8 @@ withheld for a specific reason:
   that no amount of prompting reliably removes.
 * `smart-loading` — the label shown while a tool runs. Deriving it from the tool
   name costs nothing and means the model spends no tokens narrating its own work.
+* `notice` — a fixed line from the server when Bedrock Guardrails blocks a
+  prompt or a response. The model never sees the turn, so it cannot phrase it.
 * `try-again-error` / `feedback` / `done` — control-plane objects the model has
   no business emitting.
 """
@@ -48,6 +50,14 @@ def smart_loading(tool_name: str) -> dict[str, Any]:
 
 def try_again_error(body: str) -> dict[str, Any]:
     return {"component": "try-again-error", "body": body}
+
+
+GUARDRAIL_NOTICE = "Penny can't help with that one."
+
+
+def notice(body: str = GUARDRAIL_NOTICE) -> dict[str, Any]:
+    """A neutral one-line notice. Not an error: there is nothing to retry."""
+    return {"component": "notice", "body": body}
 
 
 def done(telemetry: Mapping[str, Any] | None = None) -> dict[str, Any]:

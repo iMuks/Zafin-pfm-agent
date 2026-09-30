@@ -153,6 +153,10 @@ body {
   align-self: flex-start; background: #fef2f2; border: 1px solid #fecaca; color: #991b1b;
   font-size: 13.5px;
 }
+.msg.notice {
+  align-self: flex-start; background: var(--canvas); border: 1px solid var(--line);
+  color: var(--ink-2); font-size: 13.5px;
+}
 .msg strong { font-weight: 650; }
 
 .greeting { text-align: center; padding: 26px 18px 10px; color: var(--ink-2); }

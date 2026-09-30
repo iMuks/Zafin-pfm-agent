@@ -13,7 +13,7 @@ import os
 from collections.abc import AsyncIterator
 from typing import Any
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from pydantic import TypeAdapter
 
@@ -94,6 +94,28 @@ _JSONL_RESPONSE: dict[int | str, dict[str, Any]] = {
 }
 
 
+def _jwks_status(request: Request) -> str:
+    """`ok`, `unavailable`, or `n/a` when no verifier is configured."""
+    verifier = getattr(request.app.state, "verifier", None)
+    return verifier.status if verifier is not None else "n/a"
+
+
+@router.get(
+    "/healthz",
+    summary="Liveness probe",
+    tags=["operations"],
+    include_in_schema=False,
+)
+def healthz(request: Request) -> dict[str, str]:
+    """What the load balancer asks, and nothing else.
+
+    Exempt from authentication and deliberately empty of everything the full
+    health page reports: no model, no tools, no dataset. It answers one
+    question, is the process alive and can it verify a sign-in.
+    """
+    return {"status": "ok", "jwks": _jwks_status(request)}
+
+
 def _coverage() -> dict[str, Any]:
     """Dataset summary, or a 503 explaining exactly how to fix it."""
     try:
@@ -125,15 +147,21 @@ async def _jsonl(components: AsyncIterator[dict[str, Any]]) -> AsyncIterator[str
     response_model=HealthResponse,
     responses={503: {"description": "The enriched dataset is missing."}},
 )
-def health() -> dict[str, Any]:
+def health(request: Request) -> dict[str, Any]:
     """Operational readiness — and the dataset summary the UI chrome displays."""
     entry = resolve_model("chat")
     cfg = settings()
+    endpoint = {
+        "local": cfg.local_base_url,
+        "bedrock": cfg.bedrock_endpoint_url or None,
+    }.get(entry.provider)
     return {
         "status": "ok",
         "model": entry.model_id,
         "provider": entry.provider,
-        "endpoint": cfg.local_base_url if entry.provider == "local" else None,
+        "endpoint": endpoint,
+        "auth_mode": cfg.auth_mode,
+        "jwks": _jwks_status(request),
         "effort": entry.effort,
         "prompt_version": cfg.prompt_version,
         "api_key_configured": bool(os.getenv("ANTHROPIC_API_KEY")),

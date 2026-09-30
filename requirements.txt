@@ -15,3 +15,7 @@ langchain-anthropic>=1.0
 langgraph>=1.0
 # OpenAI-compatible client for local models (Ollama, vLLM); no OpenAI account involved
 langchain-openai>=1.0
+# Claude on Bedrock inside the operator's own AWS account (provider = bedrock)
+langchain-aws>=1.0
+# Cognito JWT verification (PENNY_AUTH_MODE=cognito)
+PyJWT[crypto]>=2.9

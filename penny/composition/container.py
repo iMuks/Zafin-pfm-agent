@@ -96,7 +96,12 @@ class Container:
         needs no key: its endpoint is inside the deployment, and the enclave
         guard in the model factory is what checks it.
         """
-        if resolve_model(purpose).provider == "local":
+        provider = resolve_model(purpose).provider
+        if provider == "local":
+            return
+        if provider == "bedrock":
+            # The task role signs the request; there is no key to check here.
+            # A missing or public endpoint is refused by the enclave guard.
             return
         if not os.getenv("ANTHROPIC_API_KEY"):
             raise MissingCredentialsError

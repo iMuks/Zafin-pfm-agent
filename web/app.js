@@ -347,6 +347,15 @@ function renderTryAgainError(c) {
 
 /* A component this client does not know how to draw still gets a place on
    screen - silent omission would hide a backend/client version mismatch. */
+/* A fixed server line when a safety filter stopped the turn. Neutral, no retry:
+   there is nothing to retry, and it must not look like Penny's own answer. */
+function renderNotice(c) {
+  const node = el("div", "msg notice");
+  node.setAttribute("role", "status");
+  node.textContent = c.body;
+  mount(node);
+}
+
 function renderUnsupported(c) {
   const wrap = el("div", "unsupported");
   wrap.append(
@@ -368,6 +377,7 @@ const RENDERERS = {
   "suggested-user-intents": renderSuggestedIntents,
   "feedback": renderFeedback,
   "try-again-error": renderTryAgainError,
+  "notice": renderNotice,
   "unsupported": renderUnsupported,
 };
 

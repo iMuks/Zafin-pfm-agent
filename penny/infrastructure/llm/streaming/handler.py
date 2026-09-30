@@ -59,6 +59,23 @@ def text_of(chunk: Any) -> str:
     return ""
 
 
+def guardrail_assessment(chunk: Any) -> str | None:
+    """The Bedrock request id when Guardrails stopped this chunk's turn, else None.
+
+    Bedrock Converse reports an intervention as `stopReason: guardrail_intervened`
+    in the message metadata rather than as an exception, and substitutes the
+    guardrail's canned text for the answer. That text must not reach the client
+    as if Penny had said it, so the caller replaces the turn with a `notice`.
+    """
+    metadata = getattr(chunk, "response_metadata", None)
+    if not isinstance(metadata, dict):
+        return None
+    if metadata.get("stopReason") != "guardrail_intervened":
+        return None
+    request_id = metadata.get("RequestId") or metadata.get("ResponseMetadata", {}).get("RequestId")
+    return str(request_id or "unknown")
+
+
 def _tool_output(payload: Any) -> Any:
     """Normalise an `on_tool_end` payload down to the dict the tool returned."""
     output = payload.get("output") if isinstance(payload, dict) else None
@@ -104,6 +121,10 @@ class StreamingResponseHandler:
         objects, self._buffer = extract_json_objects(self._buffer)
         return self._emit(objects)
 
+    def discard(self) -> None:
+        """Drop the buffer without emitting: the turn was stopped upstream."""
+        self._buffer = ""
+
     def finalize(self) -> list[dict[str, Any]]:
         """Flush whatever survives at end of stream; drop an incomplete tail."""
         leftover, self._buffer = self._buffer, ""
@@ -134,7 +155,18 @@ async def components_from_events(
         kind = event.get("event")
 
         if kind == "on_chat_model_stream":
-            text = text_of(event["data"].get("chunk"))
+            chunk = event["data"].get("chunk")
+            assessment = guardrail_assessment(chunk)
+            if assessment is not None:
+                telemetry.guardrail_assessment = assessment
+                log("stream.guardrail_intervened", assessment=assessment)
+                # Whatever Bedrock substituted for the answer is discarded: the
+                # caller ends the stream with a server-owned notice instead.
+                handler.discard()
+                continue
+            if telemetry.guardrail_intervened:
+                continue
+            text = text_of(chunk)
             if text:
                 telemetry.first_token()
                 for component in handler.process(text):
@@ -155,5 +187,8 @@ async def components_from_events(
                 telemetry.component("transaction-list")
                 yield cards
 
+    if telemetry.guardrail_intervened:
+        handler.discard()
+        return
     for component in handler.finalize():
         yield component

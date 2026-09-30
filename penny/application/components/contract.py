@@ -27,6 +27,7 @@ CONTRACT: Final[dict[str, tuple[str, ...]]] = {
     "transaction-list": ("transactions",),
     "smart-loading": ("body",),
     "try-again-error": ("body",),
+    "notice": ("body",),
     "feedback": (),
     "done": (),
 }
@@ -37,7 +38,7 @@ CHART_COMPONENTS: Final[frozenset[str]] = frozenset({"line-chart", "bar-chart", 
 #: verbatim out of a tool result, so the model cannot mistype a merchant name or
 #: an amount it was just handed — and cannot spend output tokens retyping 20 rows.
 SERVER_COMPONENTS: Final[frozenset[str]] = frozenset(
-    {"transaction-list", "smart-loading", "try-again-error", "feedback", "done"}
+    {"transaction-list", "smart-loading", "try-again-error", "notice", "feedback", "done"}
 )
 
 #: What the model is permitted to produce. The narrative components — is this

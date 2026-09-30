@@ -91,12 +91,15 @@ class CoverageSummary(BaseModel):
 class HealthResponse(BaseModel):
     status: Literal["ok"]
     model: str = Field(description="Resolved model id for the chat agent.")
-    provider: Literal["anthropic", "local"] = Field(
-        description="Where the chat model runs: the Anthropic API, or an endpoint inside the deployment."
+    provider: Literal["anthropic", "local", "bedrock"] = Field(
+        description="Where the chat model runs: the Anthropic API, an endpoint inside the "
+        "deployment, or Claude on Bedrock in the operator's own AWS account."
     )
     endpoint: str | None = Field(
-        default=None, description="The local endpoint in use when provider is local."
+        default=None, description="The in-deployment endpoint in use for local and bedrock."
     )
+    auth_mode: Literal["none", "cognito"] = Field(description="How requests are authenticated.")
+    jwks: str = Field(description="Sign-in key set: ok, unavailable, or n/a without a verifier.")
     effort: str = Field(description="Reasoning effort in force for chat.")
     prompt_version: str = Field(description="Stamped into every audit record.")
     api_key_configured: bool
@@ -184,6 +187,13 @@ class TryAgainErrorLine(BaseModel):
     body: str
 
 
+class NoticeLine(BaseModel):
+    """A fixed server line when a safety filter stopped the turn. Not an error."""
+
+    component: Literal["notice"]
+    body: str
+
+
 class FeedbackLine(BaseModel):
     component: Literal["feedback"]
 
@@ -220,6 +230,7 @@ ComponentLine = Annotated[
     | TransactionListLine
     | SmartLoadingLine
     | TryAgainErrorLine
+    | NoticeLine
     | FeedbackLine
     | DoneLine
     | UnsupportedLine,

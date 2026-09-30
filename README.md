@@ -89,6 +89,31 @@ PENNY_ANALYST_MODEL_KEY=local-qwen3-4b
 
 The local provider refuses any endpoint that is not a loopback or private-network host, and any Ollama `:cloud` model tag, so a misconfiguration fails at startup instead of sending data out. `GET /api/health` reports `provider` and `endpoint`. In production the same keys point at a vLLM service inside the VPC via `PENNY_LOCAL_BASE_URL`.
 
+### 3c · Or run against Claude on Bedrock in your own AWS account
+
+The deployment posture: no API key, the ECS task role signs the request, and the
+call never leaves the VPC. Requires a Bedrock VPC interface endpoint and (optionally)
+a Guardrail. The public `bedrock-runtime` hostname is refused by the enclave guard.
+
+```bash
+PENNY_MODEL_KEY=bedrock-sonnet PENNY_GREETING_MODEL_KEY=bedrock-haiku \
+PENNY_BEDROCK_REGION=ca-central-1 \
+PENNY_BEDROCK_ENDPOINT_URL=https://vpce-…​.bedrock-runtime.ca-central-1.vpce.amazonaws.com \
+PENNY_BEDROCK_GUARDRAIL_ID=gr-… uvicorn penny.presentation.http.app:app
+```
+
+When Guardrails blocks a prompt or a response, the stream ends with a single
+`notice` component and the audit trail records `guardrail_blocked` with the
+Bedrock request id, never the content.
+
+### 3d · Authentication (deployment)
+
+`PENNY_AUTH_MODE=cognito` verifies a Cognito JWT on every API request against the
+pool's JWKS (cached at startup, one rate-limited refresh on an unknown `kid`,
+503 with `Retry-After` when no key set is cached). `/healthz` answers the load
+balancer without a token and reports only liveness and the JWKS state. The
+default `none` keeps a development identity and is for fixtures only.
+
 ### 4 · Start the app
 
 ```bash

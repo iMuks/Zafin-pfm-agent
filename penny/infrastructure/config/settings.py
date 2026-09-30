@@ -55,6 +55,44 @@ class Settings(BaseSettings):
         description="Permit a non-private hostname for the local endpoint (private link via DNS).",
     )
 
+    # --- Bedrock (provider = "bedrock") ----------------------------------
+    #: Claude through Amazon Bedrock inside the founder's own account. The
+    #: runtime endpoint must be the VPC interface endpoint's DNS name
+    #: (vpce-....bedrock-runtime.<region>.vpce.amazonaws.com); the public
+    #: bedrock-runtime hostname is refused by the enclave guard.
+    bedrock_region: str = Field(default="ca-central-1", description="Region of the Bedrock endpoint.")
+    bedrock_endpoint_url: str = Field(
+        default="", description="VPC interface endpoint URL for bedrock-runtime (required in deployment)."
+    )
+    bedrock_allow_public_endpoint: bool = Field(
+        default=False,
+        description="Permit the public bedrock-runtime hostname. Never in deployment; fixtures only.",
+    )
+    bedrock_guardrail_id: str = Field(default="", description="Bedrock Guardrails identifier.")
+    bedrock_guardrail_version: str = Field(default="DRAFT", description="Bedrock Guardrails version.")
+    bedrock_chat_model_id: str = Field(
+        default="ca.anthropic.claude-sonnet-4-5-20250929-v1:0",
+        description="Bedrock inference profile id for the chat and analyst roles.",
+    )
+    bedrock_small_model_id: str = Field(
+        default="ca.anthropic.claude-haiku-4-5-20251001-v1:0",
+        description="Bedrock inference profile id for the greeting and judge roles.",
+    )
+    bedrock_thinking_budget_tokens: int = Field(
+        default=2048, ge=1024, description="Extended-thinking budget for Bedrock chat calls."
+    )
+
+    # --- authentication --------------------------------------------------
+    #: "none" keeps the development identity (fixtures only). "cognito" verifies
+    #: a Cognito JWT on every API request and returns 401 without one.
+    auth_mode: Literal["none", "cognito"] = "none"
+    cognito_region: str = Field(default="ca-central-1", description="Region of the user pool.")
+    cognito_user_pool_id: str = Field(default="", description="Cognito user pool id.")
+    cognito_app_client_id: str = Field(default="", description="Public PKCE app client id.")
+    jwks_refresh_min_seconds: float = Field(
+        default=60.0, gt=0, description="Minimum interval between JWKS refreshes on an unknown kid."
+    )
+
     # --- guards ----------------------------------------------------------
     max_model_calls: int = Field(
         default=8, ge=1, le=25, description="Model calls per request before the agent must wrap up."

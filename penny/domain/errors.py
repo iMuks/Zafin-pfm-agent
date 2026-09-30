@@ -26,8 +26,41 @@ class MissingCredentialsError(PennyError):
     def __init__(self) -> None:
         super().__init__(
             "ANTHROPIC_API_KEY is not set. Copy .env.example to .env and add your key, "
-            "or select a local model (PENNY_MODEL_KEY=local-qwen3-4b) to run without one."
+            "select a local model (PENNY_MODEL_KEY=local-qwen3-4b) to run without one, "
+            "or a Bedrock model (PENNY_MODEL_KEY=bedrock-sonnet) signed by the task role."
         )
+
+
+class MissingTokenError(PennyError):
+    """No bearer token on a request that requires one."""
+
+    status_code = 401
+
+    def __init__(self) -> None:
+        super().__init__("Sign in to continue.")
+
+
+class InvalidTokenError(PennyError):
+    """The bearer token failed verification. The reason is logged, never returned."""
+
+    status_code = 401
+
+    def __init__(self) -> None:
+        super().__init__("Sign in again to continue.")
+
+
+class JwksUnavailableError(PennyError):
+    """The key set could not be fetched and nothing is cached: a 503, never a 401.
+
+    A 401 here would lie: the token may be perfectly valid, and the client
+    would send the customer back to sign in for a fault on the server side.
+    """
+
+    status_code = 503
+
+    def __init__(self, retry_after_seconds: int = 30) -> None:
+        self.retry_after_seconds = retry_after_seconds
+        super().__init__("Penny can't verify sign-ins right now. Try again in a minute.")
 
 
 class RemoteModelForbiddenError(PennyError):
