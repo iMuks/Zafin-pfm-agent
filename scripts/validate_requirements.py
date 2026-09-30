@@ -6,8 +6,9 @@ Each check is tied to a line number in the brief and either inspects the repo or
 exercises the running app. Nothing here is asserted from memory: a claim that
 cannot be demonstrated is reported as a failure.
 
-Writes `docs/requirements-validation.md`. Three live model calls (a greeting, an
-analytical question, and an out-of-scope request), so it costs a little money.
+Writes `docs/requirements-validation.md`. Four live model calls (a greeting, an
+analytical question, an out-of-scope request, and a savings-goal probe), so it
+costs a little money.
 """
 
 from __future__ import annotations
@@ -50,7 +51,7 @@ def read(path: str) -> str:
 
 def static_checks() -> list[Check]:
     checks: list[Check] = []
-    readme = read("README.md")
+    readme = read("README.md").replace("\r\n", "\n")
     enriched_path = ROOT / "data" / "transactions_enriched.json"
     enriched = json.loads(enriched_path.read_text()) if enriched_path.exists() else []
 
@@ -211,28 +212,27 @@ def static_checks() -> list[Check]:
         )
     )
 
-    # Deliverables 1-3 and the bonus report.
-    readme_has = (
-        len(readme.split("\n\n")[1].strip()) > 80 if "\n\n" in readme else False,
-        "requirements.txt" in readme and "pip install" in readme,
-        "uvicorn" in readme,
+    # Deliverables 1-3 and the bonus report. Assert content, not heading titles:
+    # the description is the prose above the first section (headings, blockquotes,
+    # badges and rules dropped), the packages and run command must each be a real
+    # instruction line rather than a word that happens to appear somewhere.
+    intro = readme.split("\n## ", 1)[0]
+    description = " ".join(
+        line.strip()
+        for line in intro.splitlines()
+        if line.strip() and not line.lstrip().startswith(("#", ">", "![", "[![", "---"))
     )
+    readme_has = {
+        "description": len(description) > 80,
+        "packages": bool(re.search(r"pip install .*requirements\.txt", readme)),
+        "run command": bool(re.search(r"^\s*uvicorn\s+\S+", readme, re.MULTILINE)),
+    }
     checks.append(
         Check(
             "257-260",
             "README: description, package list, run instructions",
-            # Assert the three things the brief actually names, not a heading
-            # title: a description, the packages to install, and how to run it.
-            # An earlier version matched the literal string "## Quick start",
-            # which failed the moment that section was renamed even though the
-            # requirement was still met.
-            PASS if all(readme_has) else FAIL,
-            ", ".join(
-                f"{name}: {'yes' if ok else 'NO'}"
-                for name, ok in zip(
-                    ("description", "packages", "run command"), readme_has, strict=True
-                )
-            ),
+            PASS if all(readme_has.values()) else FAIL,
+            ", ".join(f"{k}: {'yes' if v else 'NO'}" for k, v in readme_has.items()),
         )
     )
     video_linked = bool(re.search(r"(loom\.com|drive\.google\.com|youtu)", readme))
