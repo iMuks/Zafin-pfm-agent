@@ -75,7 +75,7 @@ Approach B, by founder decision.
 
 1. `penny_ledger`: schema and Alembic migrations that apply on both engines. Money is `Decimal` in the domain, NUMERIC(18,2) on Postgres, and TEXT-encoded Decimal on SQLite through a type adapter (SQLite's NUMERIC affinity would store cents as REAL); a test asserts a six-month balance identity holds to the cent on both engines. SQLite is the fixtures-only development configuration; CI runs both engines on fixtures, SQLite in-process and Postgres as a service container, for the migrations and the balance-identity test; Postgres in the dev account is the 1a runtime. `tenant_id` on every row and every repository method from the first migration, with one provisioned tenant; the cross-tenant read test with a second tenant is 1b.
 2. `audit_events` from the first upload (R3): uploads, mapping confirmations, syncs, chat turns, review generation and dismissal. Sessions and turns move from memory to Postgres in the same migration set: `PostgresSessionRepository` behind the existing `SessionRepository` port, `sessions` and `turns` tables with tenant_id and a TTL sweep on read (eng review R4, D5, 2026-09-30). It is also the source of the weekly-use metric in premise 6. Per-tenant envelope encryption with KMS on descriptor, counterparty and provenance columns from the first upload.
-3. Upload path: `POST /uploads` returning 202 with a run id, `GET /runs/{run_id}` with backoff polling (design D17), BackgroundTask execution (no worker loop until 1b's job table) with a stale-run rule: a run with no terminal state and no heartbeat for 15 minutes is marked failed with cause "interrupted" on the next poll, and the founder re-uploads, `FileUploadAdapter` for CSV and XLSX with the model-proposed mapping catalog (date format, sign or debit/credit convention, decimal convention, native id, proposed account), the account proposal sentence (design D15), the three-shape mapping confirm (design D16).
+3. Upload path: `POST /uploads` returning 202 with a run id, `GET /runs/{run_id}` with backoff polling (design D17), BackgroundTask execution (no worker loop until 1b's job table) with a stale-run rule: a run in a running state with no heartbeat for 15 minutes is marked failed with cause "interrupted" on the next poll, and the founder uploads again; a run in needs_confirmation is waiting on the founder and is exempt, it waits indefinitely (design review DR-4, D9), `FileUploadAdapter` for CSV and XLSX with the model-proposed mapping catalog (date format, sign or debit/credit convention, decimal convention, native id, proposed account), the account proposal sentence (design D15), the three-shape mapping confirm (design D16).
 4. Reconciliation stages as designed: invariants with zero rows skipped; balance identity whenever the file carries balances, with running-balance derivation; dedup by native id or occurrence index; transfer pairing with tie-breaks, every formed pair listed in the report; re-upload preview with Replace or Keep both (design D21); atomic commit with a tenant-global sync version; the source report as current state with the delta line.
 5. Connect screen on the existing web client (sign-in already in place from Milestone 0) with the 1a states: as-of line from `GET /snapshot` (design D20), anchor block, account rows, run sub-rows (reading, checking totals, needs confirmation for mapping, account and re-upload preview, blocked, failed on our side with cause), Attention copy for an unfixable file (design D18). Deferred to 1b: account link proposed, needs_reauth and Reconnect, the second-tenant provisioning states.
 6. Consumer tool pack, read-only over the pinned snapshot, every figure carrying a `figure_id` with `Figure` persistence and `explain_number` moved from Milestone 2 into 1a so that every suggested cut is explainable (design D19):
@@ -83,7 +83,7 @@ Approach B, by founder decision.
    - `rising_categories`: per category, compare the last complete calendar month in the snapshot with the mean of the three complete months before it (the partial current month is excluded); flagged when the last complete month exceeds that mean by 15 percent and by at least $50; reports the delta annualized (delta times twelve).
    - Unusual merchants: not a new tool; an internal filter inside `suggest_cuts` over the existing `detect_anomalies` output, keeping first-seen merchants (exactly one charge in the snapshot) whose `times_category_average` is at least 2.0, that is twice the category average as `detect_anomalies` already reports it (R2, D3, 2026-09-30). New registered tools in 1a are therefore three: `list_recurring_charges`, `rising_categories`, `suggest_cuts`.
    - `suggest_cuts`: composes the three sources into one list in two sections. Section one, ranked by dollars per year: recurring charges by cadence-annualized amount, rising categories by annualized delta. Section two, labelled one-off and ranked by amount: unusual merchants by their single amount, never annualized. Each entry carries its source, its figure id, and the rows behind it.
-7. Weekly review: generated lazily on the first chat turn or `GET /snapshot` after Sunday 00:00 in the tenant's timezone (a `timezone` column on Tenant, provisioned with the founder's zone), from the latest committed snapshot, generated in a BackgroundTask on that request (the triggering request is not delayed; a row with generated_at null marks a generation in flight so it is never started twice; a row with generated_at null older than 15 minutes counts as abandoned, the next trigger regenerates it in place and writes `review_abandoned` to `audit_events` with the cause (REV-1, D6, 2026-09-30); the component appears on the next `GET /snapshot`), persisted in a `reviews` table keyed by (tenant_id, week_start) with snapshot_version, generated_at, dismissed_at and body, and written to `audit_events` as review_generated (tenant_id, review id, snapshot_version). Preconditions: no review without a committed snapshot; when snapshot_version is unchanged since the previous review, a new review is still generated with the same cuts and a rotated question, so the weekly habit holds. Rendered by a new server-owned component `weekly-review` pinned at the top of the thread until dismissed (`POST /reviews/{id}/dismiss`, which sets dismissed_at and writes an audit event) or a newer review exists. Content: coverage line; the top three cuts, taken from section one of `suggest_cuts` and falling back to section two entries labelled one-off when section one has fewer than three; when fewer than three cuts exist, including zero, the component still renders the coverage line and the question, and the cuts block reads "No cuts to suggest yet. Penny needs about three months of data to spot a pattern."; and one question chosen from a fixed templated set driven by snapshot state (an unreviewed transfer pair, a run waiting on confirmation, a source whose coverage is more than 14 days old, a category that rose); the model may phrase the review over tool output only and may not add facts. When Guardrails blocks the phrasing call, the review is rendered from the templated text without the model and `review_phrasing_blocked` is written to `audit_events` (REV-3, D8, 2026-09-30). On iOS the same record may become a Sunday notification; that is Open Question 2.
+7. Weekly review: generated lazily on the first chat turn or `GET /snapshot` after Sunday 00:00 in the tenant's timezone (a `timezone` column on Tenant, provisioned with the founder's zone), from the latest committed snapshot, generated in a BackgroundTask on that request (the triggering request is not delayed; a row with generated_at null marks a generation in flight so it is never started twice; a row with generated_at null older than 15 minutes counts as abandoned, the next trigger regenerates it in place and writes `review_abandoned` to `audit_events` with the cause (REV-1, D6, 2026-09-30); the component appears on the next `GET /snapshot`), persisted in a `reviews` table keyed by (tenant_id, week_start) with snapshot_version, generated_at, dismissed_at and body, and written to `audit_events` as review_generated (tenant_id, review id, snapshot_version). Preconditions: no review without a committed snapshot; when snapshot_version is unchanged since the previous review, a new review is still generated with the same cuts and a rotated question, so the weekly habit holds. Rendered by a new server-owned component `weekly-review` in its own slot above the thread, outside the scroll region and collapsible to one line, fetched by the client on open through `GET /snapshot` (an in-flight review shows "Preparing your Sunday review…" and polls with the D17 backoff for up to 30 s) (design review DR-1, D6, 2026-09-30); dismissed by a 44px text button (`POST /reviews/{id}/dismiss`, which sets dismissed_at and writes an audit event) that collapses the block to a one-line stub for the session, or replaced when a newer review exists; the question renders as the existing `suggested-user-intents` chip and "Show the rows" opens the D19 explain view (DR-8, D13). Content: coverage line; the top three cuts, taken from section one of `suggest_cuts` and falling back to section two entries labelled one-off when section one has fewer than three; when fewer than three cuts exist, including zero, the component still renders the coverage line and the question, and the cuts block reads "No cuts to suggest yet. Penny needs about three months of data to spot a pattern."; and one question chosen from a fixed templated set driven by snapshot state (an unreviewed transfer pair, a run waiting on confirmation, a source whose coverage is more than 14 days old, a category that rose); the model may phrase the review over tool output only and may not add facts. When Guardrails blocks the phrasing call, the review is rendered from the templated text without the model and `review_phrasing_blocked` is written to `audit_events` (REV-3, D8, 2026-09-30). On iOS the same record may become a Sunday notification; that is Open Question 2.
 8. Model: `bedrock` provider from the first upload, Guardrails on every prompt and response, reached only through the VPC interface endpoint. No `local` provider with real data; no public API. When Guardrails blocks a prompt or a response in chat, the stream ends with a server-owned `notice` component reading "Penny can't help with that one." and the turn is written to `audit_events` as `guardrail_blocked` with the Guardrails assessment id and never the content (REV-3, D8, 2026-09-30).
 
 ### Estimate
@@ -907,7 +907,7 @@ Information architecture, minimal view: first the "data as of" line (D20), secon
 
 Journey, emotional arc for user one: sign in (routine) → upload two files (mild anxiety: will it read them?) → confirm a mapping in a plain form (relief when the sentence names the right account, D15) → "Totals match your statement" (trust) → ask "what should I cut" (curiosity) → open a figure to its rows (verification, the trust moment) → Sunday review pinned (habit) → dismiss (closure). The plain view does not break the arc; the trust moments are copy and data, not layout.
 
-AI slop risk: low by construction; the minimal view is deliberately unstyled and the polished screen's decisions (D4 to D21) are already made and deferred, not replaced by generic patterns. DESIGN.md does not exist yet (TODOS.md: /design-consultation); the minimal view uses browser defaults and the existing `web/` styles. Responsive: the minimal view is a single column and works at phone width; iOS is the customer client later. Accessibility: native form controls and text states give keyboard and screen-reader coverage for free; the run-state text must not rely on colour alone (it does not, it is text); touch targets are default buttons.
+AI slop risk: low by construction; the minimal view is built only from the existing tokens in `web/styles.css` per the approved wireframe (design review DR-0, D4, 2026-09-30), and the polished screen's decisions (D4 to D21) are already made and deferred, not replaced by generic patterns. DESIGN.md does not exist yet (TODOS.md: /design-consultation); the minimal view uses browser defaults and the existing `web/` styles. Responsive: the minimal view is a single column and works at phone width; iOS is the customer client later. Accessibility: native form controls and text states give keyboard and screen-reader coverage for free; the run-state text must not rely on colour alone (it does not, it is text); touch targets are default buttons.
 
 ```text
   [sign-in] → [connect view: as-of, runs, upload] → (upload) → [run: reading] → [needs confirmation: form] → [checking totals] → [verified | failed: cause]
@@ -1010,7 +1010,7 @@ Synthesized from this review's findings. Each task derives from a specific findi
 - [ ] **T5 (P2, human: ~1 day / CC: ~30 min)** — tool pack — Build `list_recurring_charges`, `rising_categories` and `suggest_cuts` over the existing insights with one annualization function and one figure helper
   - Surfaced by: Section 5 — DRY and complexity findings; Section 6 rows
   - Files: penny/application/insights/recurring_charges.py, rising_categories.py, suggest_cuts.py (new), penny/application/insights/figures.py (new), tool registry
-  - Verify: threshold unit tests (three occurrences, cadence windows, 15 percent and $50, partial month excluded); every `suggest_cuts` entry's figure resolves to rows whose Decimal sum equals the figure
+  - Verify: threshold unit tests (three occurrences, cadence windows, 15 percent and $50, partial month excluded); every `suggest_cuts` entry's figure resolves to rows whose Decimal sum equals the figure's `observed_total` (design review DR-10, D15)
 - [ ] **T6 (P2, human: ~2 h / CC: ~10 min)** — deploy — Task stop timeout 120 s, `weekly_review_enabled` setting, migrate-then-deploy pipeline order, post-deploy smoke
   - Surfaced by: Section 9
   - Files: infra task definition, penny/infrastructure/config/settings.py, deploy pipeline (to be determined)
@@ -1567,7 +1567,7 @@ Synthesized from this review's findings. Each task derives from a specific findi
 - [ ] **E6 (P2, human: ~3 h / CC: ~10 min)** — tools — `ToolRegistry` figures hook with a `FigureRepository` port; persist-failure path; `GET /figures/{id}`
   - Surfaced by: R3 (D4 A); Code Quality C4
   - Files: penny/application/tools/registry.py (plus docstring diagram), penny/application/ports/figures.py (new), penny/presentation/http/routes.py, tests
-  - Verify: hook test (stamp, persist, failure → no id + `figure_persist_failed`); explain returns rows whose Decimal sum equals the figure; foreign id → 404
+  - Verify: hook test (stamp, persist, failure → no id + `figure_persist_failed`); explain returns rows whose Decimal sum equals the figure's `observed_total`, plus `observed_count` and `derivation` (DR-10); foreign id → 404
 - [ ] **E7 (P2, human: ~2 days / CC: ~2 h)** — reviews — Reviews service: insert-before-spawn, explicit task args, abandon rule, templated fallback in the `GreetingFacts` shape, dismiss endpoint
   - Surfaced by: item 7; REV-1; REV-3; Architecture A2; Code Quality C5
   - Files: penny/application/reviews/service.py (new), penny/presentation/http/routes.py, penny_ledger (reviews repository), tests
@@ -1604,17 +1604,184 @@ None in this review.
 - Parallelization: 4 lanes, 3 parallel / 1 sequential chain
 - Lake Score: 5/5 = 10/10 choices / answered coverage choices (D2-D6)
 
+## Design review (plan-design-review, 2026-09-30, revision 3: Milestone 1a surfaces)
+
+Scope: the surfaces revision 3 adds or changes: Milestone 0 sign-in states, the minimal Your-data view (RED-1), the `weekly-review` component (item 7), the `notice` component (REV-3), and the Show-the-rows explain view in 1a (RED-3). The polished connect screen's decisions D4 to D21 (first doc) stand and are not re-reviewed. No DESIGN.md (TODOS.md, /design-consultation); tokens are those in `web/styles.css`. Base branch main.
+
+Step 0: initial design completeness 6/10 for the 1a surfaces (states table and flow exist in the CEO review's Section 11; the two new components had copy but no anatomy; sign-in and 503 states unspecified; "plain" never tied to tokens; no a11y contract for the new components). Focus: all seven dimensions (D2 = A).
+
+Visual reference (D4 = A, approved): `~/.gstack/projects/iMuks-Zafin-pfm-agent/designs/minimal-connect-20260930/wireframe-v1.png` (HTML wireframe rendered by gstack's browser; the image designer has no OpenAI credits, verified 2026-09-30: `insufficient_quota`). Four panels: (1) sign-in, session expired, keys unavailable; (2) Your data: as-of line, runs as a divided list with state text and one action, upload form, plain confirm form with the missing-column picker; (3) chat with the Sunday review pinned (coverage line, three cuts with amount per year and "Show the rows", one question chip, 44px dismiss), the empty review, the blocked-turn notice; (4) Show the rows: headline figure, rows table, sum of rows, provenance line, unavailable state.
+
+Existing design leverage: app bar and P avatar, `--line` divided list, `--radius` 18px, `tabular-nums`, `--brand-soft` chips, `smart-loading`, `try-again-error`, `transaction-list` renderer (the explain view body per D19), `--attention` from D12. Nothing new invented; the wireframe is these parts with the layout work removed.
+
+### Outside voices (design)
+
+Codex: broken install (spawn ENOENT), not run; outside coverage unavailable. Claude subagent (single-model, in-host): completed, 10 findings (2 critical, 4 high, 4 medium). Litmus scorecard (Claude only; Codex column not available): 1 brand unmistakable YES (app bar, P avatar); 2 one visual anchor YES (as-of line / Sunday review); 3 scannable by headlines YES; 4 one job per section YES; 5 cards necessary: the review block and the run list are the interaction units, YES; 6 motion: none specified, N/A; 7 premium without shadows YES (no decorative shadows). Hard rejections: none. All ten findings were taken through their own decision below; the two contradictions with approved contracts (finding 3 vs D4, finding 9's follow-up message vs REV-3) were corrected without a new choice.
+
+### Pass 1: Information Architecture — 6/10 → 10/10
+
+Per panel, first / second / third: sign-in: promise line, button, helper. Your data: as-of line, run list, upload form (forms for a run's questions appear under that run's row, DR-4). Chat: Sunday review slot, greeting or thread, composer. Show the rows: exact headline, derivation line, rows.
+
+```text
+  [sign-in] ─callback─▶ [chat]  ─ no snapshot ─▶ first-run greeting + link ─▶ [Your data]
+                          │ review slot (above thread, collapsible)          │ as-of · runs (last 10, account · file) · upload form
+                          │ thread                                           │ run row ─▶ inline form chain: account → mapping → preview
+                          └─ figure tap ─▶ [Show the rows] ◀── review "Show the rows"   └─ Report link
+```
+
+Decisions: DR-1 (D6 = 1A) review slot above the thread, fetched on open, in-flight state and 30 s polling; DR-2 (D7 = 2A) first-run greeting with a link when no committed snapshot exists, no model call; DR-3 (D8 = 3A) run rows prefixed with the account once known, last ten with "Older runs", list-level polling with the D17 backoff while any run is non-terminal, run id in the URL hash.
+
+### Pass 2: Interaction State Coverage — 5/10 → 10/10
+
+| Feature | Loading | Empty | Error | Success | Partial |
+|---|---|---|---|---|---|
+| Sign-in | "Signing you in…" during the token exchange (DR-6) | card: "Sign in to Penny" + promise line + button | 401 anywhere replaces the view with the card; hash carried in OAuth state and restored; composer draft kept in sessionStorage; 503 on any API call: "Penny can't verify sign-ins right now. Try again in a minute." button disabled for Retry-After (DR-6) | returns to the view the 401 interrupted | n/a |
+| Chat, first run | n/a | first-run greeting "Connect a bank export and I can tell you where the money went." + link to Your data (DR-2) | try-again-error (exists) | greeting streams | n/a |
+| Your data view | "Loading your sources…" | "No sources yet. Upload a CSV or spreadsheet." + form | "Couldn't load runs. Reload." | as-of line + run list | one run waiting on you |
+| Run row | Queued → "Reading…" → "Checking totals…" (state names) | n/a | "Failed on our side · interrupted. Upload again." (`--attention`); D5 causes for file problems | "Imported · N lines through <date>" or "Verified · totals match · N lines through <date>" (DR-7) | "N imported, M skipped" |
+| Upload form (DR-5) | "Uploading <name>…" button disabled | idle: file input + help line | pre-send rejection under the button with D5 copy (type, 20 MB); "Couldn't send the file. Try again." | 202: form resets, "Queued" row inserted at top | n/a |
+| Confirm chain (DR-4) | "Reading 5 sample rows…" | n/a | field error text ("Pick two different columns."); D16 secondary "This file won't work, try another export" | next gate or the row returns to running; "1 of 3" when several pend | one ambiguous field flagged (D16) |
+| Sunday review (DR-1, DR-8) | "Preparing your Sunday review…" one line, polls 30 s | coverage line + "No cuts to suggest yet. Penny needs about three months of data to spot a pattern." + question chip | not shown; abandon rule regenerates | coverage line, three cuts with $/yr and "Show the rows", question chip, 44px Dismiss → one-line stub | fewer than three cuts: one-off entries labelled |
+| Notice (REV-3, DR-8) | n/a | n/a | the notice is the state: neutral `.msg.notice`, no retry, stream ends | n/a | n/a |
+| Show the rows (DR-10) | "Opening the rows…" | unreachable (asserted in the figure helper) | "That figure isn't available. It may come from an older answer; ask again for a fresh one." | exact headline, derivation line, all rows or "Show all N", sum of rows = observed total, provenance line | n/a |
+
+Decisions: DR-4 (D9 = 4A) ordered inline confirm chain, needs_confirmation exempt from the stale-run rule; DR-5 (D10 = 5A) five-state upload form; DR-6 (D11 = 6A) sign-in edge states; DR-7 (D12 = 7A) Imported vs Verified · totals match.
+
+### Pass 3: User Journey & Emotional Arc — 6/10 → 9/10
+
+| Step | User does | User feels | Plan specifies |
+|---|---|---|---|
+| 1 | Signs in (hosted UI, returns) | routine | DR-6 states; promise line "Your data stays in your own AWS account" (5-second visceral: privacy is the brand) |
+| 2 | Reads the first-run greeting, taps the link | oriented | DR-2 |
+| 3 | Chooses a file, uploads | mild anxiety | DR-5: "Uploading…", Queued row appears |
+| 4 | Answers the account sentence, then a mapping question, on the row | relief when Penny names the right account | DR-4, D15, D16 |
+| 5 | Sees "Verified · totals match · 1,204 lines" | trust | DR-7 (only when earned) |
+| 6 | Asks "what should I cut" | curiosity | tool pack; figures with "Show the rows" |
+| 7 | Opens a figure, checks the rows add up | verification, the trust moment | DR-10: derivation line, exact sums |
+| 8 | Returns Sunday, sees the review above the thread | habit | DR-1 slot; DR-8 chip question |
+| 9 | Dismisses it | closure without loss | DR-8 stub |
+| 5-year | Uses the same core with the polished screen and iOS | the plain month was not wasted | RED-1: same endpoints, same tokens |
+
+Remaining gap (why 9): the greeting on the second and later sessions still leads with last month's spend rather than the review; acceptable because the review sits above it (DR-1). No new decision.
+
+### Pass 4: AI Slop Risk — 8/10 → 9/10
+
+Classifier: OPERATE (app UI). Hard rejections: none (the run list is a divided list, not a card mosaic; the review block is the one interaction unit that earns its surface). Litmus: as in the scorecard above. App UI rules: calm surface hierarchy (canvas/surface/line), utility copy ("Queued", "Imported · N lines"), one accent (`--brand`), state carried by text. Blacklist: none hit; the body font is the existing stack in `web/styles.css` (system stack) which the first review's D12 already flagged for DESIGN.md (TODOS.md); not re-raised. Reflex checks: focus ring themed (DR-9); tabular numerals on amounts (exists); light mode from the use scene (a Sunday at home; the first review's D12 covers dark mode as deferred). Remaining gap (why 9): typeface is decided only by DESIGN.md, deferred.
+
+### Pass 5: Design System Alignment — 5/10 → 9/10
+
+No DESIGN.md (TODOS.md). Tokens used, all existing: `--ink`, `--ink-2`, `--ink-3`, `--line`, `--surface`, `--canvas`, `--brand`, `--brand-deep`, `--brand-soft`, `--good`, `--warn`, `--radius`; plus `--attention` (#b91c1c, D12) for "failed on our side". New vocabulary: one CSS rule `.msg.notice` (neutral, no retry) and the review slot container; everything else reuses `.viz`/divided list, chips (`suggested-user-intents`), text buttons and the D19 explain view. DR-0 correction: the plan's "deliberately unstyled" sentence replaced by "built only from the existing tokens per the approved wireframe" (D4). Decision: DR-8 (D13 = 8A). Remaining gap (why 9): DESIGN.md.
+
+### Pass 6: Responsive & Accessibility — 4/10 → 10/10
+
+DR-9 (D14 = 9A): the run list is an `aria-live="polite"` region and every state is text, never colour alone; visible labels on every field, never placeholder-only; row actions, Dismiss and "Show the rows" are 44px targets; `--ink-2` on `--surface` checked at ≥ 4.5:1; single column at 375px with 16px gutters and no horizontal scroll; focus rings from `--brand`; native form controls for keyboard and screen readers.
+
+### Pass 7: Unresolved Design Decisions
+
+| Decision needed | Resolved |
+|---|---|
+| Annualized figure vs observed rows in Show the rows | DR-10 (D15 = 10A): Figure records `observed_total`, `observed_count`, `derivation`; view shows the exact headline, a derivation line ("12 charges observed, $215.88 · last $17.99 × 12 = $215.88 / year"; rising: "delta $145 × 12"; one-offs: none), all rows or "Show all N", sum of rows = observed total; eng task E6 and CEO task T5 assertions rewritten to observed_total |
+| Response-side Guardrails copy | recorded, not decided: one notice copy for both prompt- and response-side blocks in 1a; a second copy ("Penny's answer didn't pass her safety check. Try asking another way.") is a 1b refinement, TODO below |
+
+0 deferred from this review's own findings; 1 recorded refinement.
+
+### Updated wireframe
+
+`wireframe-v2.png` in the same directory restates DR-1 to DR-10 (review slot above the thread with a stub, inline confirm form under its row with "1 of 3", account-prefixed rows, "Imported" vs "Verified · totals match", derivation line in Show the rows, notice without a follow-up message). Review evidence, not a new decision.
+
+### NOT in scope (design, revision 3)
+- Second notice copy for response-side Guardrails blocks: 1b refinement (TODOS.md).
+- Dark mode, typeface, DESIGN.md: first review D12 and D22, unchanged.
+- The polished connect screen D4 to D21: 1b (RED-1).
+- iOS notification for the Sunday review: iOS lane (Open Question 2).
+- Greeting leading with the review on later sessions: not needed while the slot exists (Pass 3).
+
+### What already exists (design, revision 3)
+App bar and P avatar, divided list and `--line`, `--radius`, chips, `smart-loading`, `try-again-error`, `transaction-list` (explain body), `suggested-user-intents` (review question), tokens and `--attention` from D12, the D5 state copy, the D15 to D21 form copy: all reused. New: the review slot container, `.msg.notice`, the first-run greeting branch, the derivation line.
+
+### TODOS.md updates (design)
+One proposal, added: response-side Guardrails notice copy (P3, 1b).
+
+### Approved Mockups
+
+| Screen/Section | Mockup Path | Direction | Notes |
+|---|---|---|---|
+| 1a minimal surfaces: sign-in states, Your data, Sunday review + notice, Show the rows | /Users/mukeshsharma/.gstack/projects/iMuks-Zafin-pfm-agent/designs/minimal-connect-20260930/wireframe-v2.png (v1 approved D4; v2 restates DR-1 to DR-10) | Penny's existing chrome and tokens with the layout work removed | HTML wireframe (designer had no image credits); build from tokens only; see DR-1 to DR-10 |
+
+## Design Implementation Tasks
+Synthesized from this review's findings. Each task derives from a specific finding above. Run with Claude Code or Codex; checkbox as you ship.
+
+- [ ] **DT1 (P1, human: ~half a day / CC: ~15 min)** — web/ chat — Review slot above `#thread`, fetch `GET /snapshot` on boot, in-flight state with 30 s polling, collapse-to-stub Dismiss, chip question, `.msg.notice` rule
+  - Surfaced by: Pass 1 DR-1; Pass 5 DR-8
+  - Files: web/index.html, web/app.js (boot, RENDERERS: weekly-review, notice), web/styles.css
+  - Verify: with a fixture review, open the page: the review is visible before the greeting streams; Dismiss leaves a one-line stub; the notice renders without a Retry button
+- [ ] **DT2 (P1, human: ~2 h / CC: ~10 min)** — greeting — First-run greeting with a link when no committed snapshot exists
+  - Surfaced by: Pass 1 DR-2
+  - Files: penny/presentation/http/routes.py (greeting), penny/application/conversation/greeting.py, web/app.js
+  - Verify: with an empty ledger the greeting endpoint returns the fixed first-run component and makes no model call
+- [ ] **DT3 (P1, human: ~1 day / CC: ~30 min)** — web/ Your data — Run list (account · file, last ten, Older runs, list polling, hash resume), inline confirm chain under the row with "1 of 3", five-state upload form, Imported vs Verified copy
+  - Surfaced by: Pass 1 DR-3; Pass 2 DR-4, DR-5, DR-7
+  - Files: web/index.html, web/app.js, web/styles.css, penny/presentation/http/routes.py (GET /runs list; run carries `identity_ran`), penny_ingest (needs_confirmation exempt from the stale-run rule)
+  - Verify: browser test on fixtures: double-click makes one run; a 25 MB file is refused before POST; a run in needs_confirmation is untouched after 16 minutes; the row says Imported when no balance column
+- [ ] **DT4 (P1, human: ~3 h / CC: ~10 min)** — web/ auth — "Signing you in…", 401 replaces the view and returns via OAuth state, composer draft in sessionStorage, 503 with Retry-After on any call
+  - Surfaced by: Pass 2 DR-6
+  - Files: web/app.js, web/index.html
+  - Verify: expire the token mid-chat: the card appears, sign-in returns to the same hash with the draft intact; a 503 disables the button for Retry-After seconds
+- [ ] **DT5 (P1, human: ~2 h / CC: ~10 min)** — figures — `observed_total`, `observed_count`, `derivation` on Figure; explain view headline exact, derivation line, all rows or Show all
+  - Surfaced by: Pass 7 DR-10
+  - Files: penny/application/insights/figures.py, penny/application/tools/registry.py (hook), penny/presentation/http/routes.py (explain), web/app.js
+  - Verify: for every suggest_cuts entry, rows sum to observed_total to the cent and the derivation string matches the headline
+- [ ] **DT6 (P2, human: ~1 h / CC: ~5 min)** — web/ a11y — aria-live run list, text states, visible labels, 44px targets, contrast check, 375px single column, focus ring
+  - Surfaced by: Pass 6 DR-9
+  - Files: web/index.html, web/styles.css
+  - Verify: axe or manual: no colour-only state; all targets ≥ 44px; no horizontal scroll at 375px
+
+_No new tasks from Pass 3 and Pass 4._
+
+### Design review completion summary (revision 3)
+
+```text
+  +====================================================================+
+  |         DESIGN PLAN REVIEW — COMPLETION SUMMARY                    |
+  +====================================================================+
+  | System Audit         | no DESIGN.md; UI: 1a minimal surfaces       |
+  | Step 0               | 6/10 first impression; all seven dimensions |
+  | Pass 1  (Info Arch)  | 6/10 → 10/10 after fixes (DR-1, DR-2, DR-3) |
+  | Pass 2  (States)     | 5/10 → 10/10 after fixes (DR-4 to DR-7)     |
+  | Pass 3  (Journey)    | 6/10 →  9/10 (storyboard; greeting order)   |
+  | Pass 4  (AI Slop)    | 8/10 →  9/10 (typeface via DESIGN.md)       |
+  | Pass 5  (Design Sys) | 5/10 →  9/10 after fixes (DR-0, DR-8)       |
+  | Pass 6  (Responsive) | 4/10 → 10/10 after fixes (DR-9)             |
+  | Pass 7  (Decisions)  | 1 resolved (DR-10), 0 deferred, 1 recorded  |
+  +--------------------------------------------------------------------+
+  | NOT in scope         | written (5 items)                           |
+  | What already exists  | written                                     |
+  | TODOS.md updates     | 1 item proposed, 1 added                    |
+  | Approved Mockups     | 0 generated (no image credits), 1 wireframe |
+  |                      | approved (v1), v2 restates decisions        |
+  | Decisions made       | 11 (DR-0 wireframe, DR-1 to DR-10)          |
+  | Decisions deferred   | 0                                           |
+  | Outside voices       | Claude subagent [single-model] issues found;|
+  |                      | Codex unavailable (broken install)          |
+  | Overall design score | 4/10 → 9/10 (lowest rated pass)             |
+  +====================================================================+
+```
+Plan is design-complete for the 1a surfaces (every rated pass 9 or 10). Run /design-review on the dev hostname after implementation.
+
+### Unresolved design decisions (revision 3)
+None. The response-side notice copy is a recorded 1b refinement in TODOS.md, not an open decision.
+
 ## GSTACK REVIEW REPORT
 
 | Review | Trigger | Why | Runs | Status | Findings |
 |--------|---------|-----|------|--------|----------|
-| CEO Review | `/plan-ceo-review` | Scope & strategy | 1 (develop, 2026-09-30, commit e8c91c4) | CLEAR | mode: SCOPE_REDUCTION, 0 critical gaps; 4 cuts offered, 1 accepted |
-| Outside Review | codex via `/plan-ceo-review` and `/plan-eng-review` (develop); codex via eng review and design outside voices (main) | Independent 2nd opinion | 2 on develop; 2 on main | unavailable (broken install; native fallback unavailable) | no completed external review |
-| Eng Review | `/plan-eng-review` | Architecture & tests (required) | 1 (this run, develop) | ISSUES OPEN (11 issues mapped to tasks, 0 critical gaps, 0 unresolved) | 11 issues, 0 critical gaps |
-| Design Review | `/plan-design-review` | UI/UX gaps | 0 on develop (1 on main, first doc, 9a737c5) | not run on revision 3 | main run: score 2/10 → 9/10, 18 decisions |
+| CEO Review | `/plan-ceo-review` | Scope & strategy | 1 (develop, 2026-09-30, e8c91c4) | CLEAR | mode: SCOPE_REDUCTION, 0 critical gaps; 4 cuts offered, 1 accepted |
+| Outside Review | codex via `/plan-ceo-review` and `/plan-eng-review` (develop); design outside voices via `/plan-design-review` (develop, native only) | Independent 2nd opinion | 3 on develop | unavailable (broken install); design voice: Claude subagent completed, 10 findings, all resolved | no completed external review |
+| Eng Review | `/plan-eng-review` | Architecture & tests (required) | 1 (develop, 2026-09-30, 6b0cd9d) | ISSUES OPEN (11 issues mapped to tasks E1-E9, 0 unresolved, 0 critical gaps) | 11 issues, 0 critical gaps |
+| Design Review | `/plan-design-review` | UI/UX gaps | 1 on develop (this run); 1 on main (first doc) | CLEAR | score: 4/10 → 9/10, 11 decisions |
 | DX Review | `/plan-devex-review` | Developer experience gaps | 0 | — | — |
 
-- **OUTSIDE COVERAGE:** codex, plan-review phase, unavailable in both develop runs today (CLI installed but its vendor binary cannot run: spawn ENOENT; reinstall with `npm install -g @openai/codex`); native fallback not dispatched because TaskOutput is absent from this session's tools; no findings, no clean credit.
-- **VERDICT:** CEO CLEARED; ENG reviewed with every finding resolved into tasks E1-E9 (status issues_open means mapped work, not open questions); design review of the minimal view, `weekly-review` and `notice` components is the next step the founder asked for.
+- **OUTSIDE COVERAGE:** codex, plan-review phase (CEO and eng runs) and design phase: unavailable (CLI installed but its vendor binary cannot run: spawn ENOENT; reinstall with `npm install -g @openai/codex`). Design phase native fallback: Claude subagent completed with 10 findings; 10 resolved (DR-1 to DR-10 and two corrections), 0 unresolved; native, not outside coverage.
+- **VERDICT:** CEO + DESIGN CLEARED; eng review complete with every finding mapped to a task (logged issues_open = mapped work). Eng review required by the dashboard rule until a clean run; re-run after DR-10 changes the Figure record and E6/T5 assertions (a one-line change, already applied to the tasks).
 
 NO UNRESOLVED DECISIONS

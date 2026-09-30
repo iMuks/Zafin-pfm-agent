@@ -52,4 +52,16 @@
 **Priority:** P2
 **Depends on:** Milestone 1a shipped.
 
+### Response-side Guardrails notice copy
+
+**What:** A second `notice` string for response-side Guardrails blocks ("Penny's answer didn't pass her safety check. Try asking another way."), distinct from the prompt-side "Penny can't help with that one."
+
+**Why:** One copy for both cases misreads a legitimate question as disallowed when it was the answer that was filtered.
+
+**Context:** docs/designs/penny-revision-3-user-order.md, design review Pass 7 (2026-09-30); REV-3 defines the single notice for 1a. Needs the Guardrails assessment to distinguish input from output intervention.
+
+**Effort:** S
+**Priority:** P3
+**Depends on:** REV-3 shipped in 1a.
+
 ## Completed
