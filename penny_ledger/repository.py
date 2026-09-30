@@ -422,9 +422,7 @@ class LedgerRepository:
             ).all()
         in_transfer = {p for pair in pairs for p in pair}
         transactions = [
-            to_transaction(
-                Posting(**{k: v for k, v in row.items()}), in_transfer=row["id"] in in_transfer
-            )
+            to_transaction(Posting(**dict(row)), in_transfer=row["id"] in in_transfer)
             for row in rows
         ]
         view = SnapshotView(tenant_id, version, transactions)

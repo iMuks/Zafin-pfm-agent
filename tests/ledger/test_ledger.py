@@ -26,24 +26,30 @@ from penny.domain.ledger import (
     money,
 )
 from penny.infrastructure.events.memory import InMemoryEventBus
-from penny_ledger.repository import Batch, LedgerAuditSink, LedgerRepository, create_schema
+from penny_ledger.repository import (
+    Batch,
+    CommitConflictError,
+    LedgerAuditSink,
+    LedgerRepository,
+    create_schema,
+)
 
 T1, T2 = "tenant1", "tenant2"
 
 
 def posting(tenant, account, day, amount, direction="debit", **kw) -> Posting:
-    defaults = dict(
-        tenant_id=tenant,
-        account_id=account,
-        source_id=kw.pop("source_id", "src1"),
-        day=date.fromisoformat(day),
-        amount=money(amount),
-        direction=direction,
-        description=kw.pop("description", "POS PURCHASE"),
-        merchant=kw.pop("merchant", "Shop"),
-        category=kw.pop("category", "Groceries"),
-        row_hash=kw.pop("row_hash", f"{account}:{day}:{amount}"),
-    )
+    defaults = {
+        "tenant_id": tenant,
+        "account_id": account,
+        "source_id": kw.pop("source_id", "src1"),
+        "day": date.fromisoformat(day),
+        "amount": money(amount),
+        "direction": direction,
+        "description": kw.pop("description", "POS PURCHASE"),
+        "merchant": kw.pop("merchant", "Shop"),
+        "category": kw.pop("category", "Groceries"),
+        "row_hash": kw.pop("row_hash", f"{account}:{day}:{amount}"),
+    }
     defaults.update(kw)
     return Posting(**defaults)
 
@@ -141,7 +147,7 @@ class Commit(LedgerCase):
     def test_commit_is_all_or_nothing(self):
         good = posting(T1, "chq", "2026-06-01", "1.00")
         duplicate_id = posting(T1, "chq", "2026-06-02", "2.00", id=good.id)  # primary key clash
-        with self.assertRaises(Exception):
+        with self.assertRaises(CommitConflictError):
             self.ledger.commit(T1, Batch(source_id="src1", postings=[good, duplicate_id]))
         self.assertEqual(self.ledger.latest_version(T1), 0)
         self.assertEqual(self.ledger.runs(T1), [])
