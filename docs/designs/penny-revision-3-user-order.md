@@ -67,21 +67,21 @@ Approach B, by founder decision.
 
 ### Sequence
 
-- **Milestone 0, first (from the first doc, revision 2):** region; prod and dev accounts under an Organization with SSO; VPC, private subnets, interface endpoints for Bedrock, Secrets Manager, KMS and S3; Bedrock model access for Claude; Cognito user pool with one tenant and one user (the founder); a hostname on a domain the founder owns (for example `dev.penny.<founder-domain>`) with a Route 53 hosted zone and an ACM certificate; ingress: an internet-facing Application Load Balancer with TLS, no ALB authentication action, security group restricted to the founder's IP until 1b's WAF and CloudFront; one public Cognito app client with PKCE and no secret, callback `https://<hostname>/`; `web/` is served by the same Fargate service at the same origin as the API (as `app.py` mounts it today), so there is no CORS and the callback origin is the API origin; the `web/` hosted-UI sign-in and bearer token on every request, with the middleware validating the token against the Cognito JWKS and returning 401 on a missing or invalid token, are Milestone 0 work because they are what makes Milestone 0 testable; JWKS contract (REV-2, D7, 2026-09-30): the key set is fetched at startup and cached, an unknown `kid` triggers one refresh (at most one per minute) and then 401, an empty cache with a failed fetch returns 503 with Retry-After and the health endpoint reports `jwks: unavailable`, and the Cognito JWKS URL is the one public egress allowed for the API task; the D13 eval baseline runs as a one-off Fargate task with the same task role inside the VPC; RDS Postgres with KMS; two Object-Locked buckets with retention written down; `bedrock` provider in the registry with the enclave guard requiring the VPC endpoint hostname; Guardrails id in settings; Penny deployed as-is to Fargate in the dev account; the D13 eval baseline on Bedrock; six CloudWatch alarms delivered by SNS email (REV-4, D9, 2026-09-30): ECS running tasks below one, ALB 5xx at least one in five minutes, `reviews_abandoned` at least one, `auth_503_jwks` at least one, RDS free storage under 20 percent or CPU over 80 percent for 15 minutes, Bedrock throttles at least five in five minutes. Human ~1 week plus half a day / CC+gstack ~1 day. The `local` provider baseline is not required; D13's baseline is on the production model.
+- **Milestone 0, first (from the first doc, revision 2):** region; prod and dev accounts under an Organization with SSO; VPC, private subnets, interface endpoints for Bedrock, Secrets Manager, KMS and S3; Bedrock model access for Claude; Cognito user pool with one tenant and one user (the founder); a hostname on a domain the founder owns (for example `dev.penny.<founder-domain>`) with a Route 53 hosted zone and an ACM certificate; ingress: an internet-facing Application Load Balancer with TLS, no ALB authentication action, security group restricted to the founder's IP until 1b's WAF and CloudFront; one public Cognito app client with PKCE and no secret, callback `https://<hostname>/`; `web/` is served by the same Fargate service at the same origin as the API (as `app.py` mounts it today), so there is no CORS and the callback origin is the API origin; the `web/` hosted-UI sign-in and bearer token on every request, with the middleware validating the token against the Cognito JWKS and returning 401 on a missing or invalid token, are Milestone 0 work because they are what makes Milestone 0 testable; a new `GET /healthz`, exempt from the middleware and returning only `status` and the JWKS cache state, is the ALB target-group health check, while `/api/health` stays behind auth (eng review R5, D6, 2026-09-30); JWKS contract (REV-2, D7, 2026-09-30): the key set is fetched at startup and cached, an unknown `kid` triggers one refresh (at most one per minute) and then 401, an empty cache with a failed fetch returns 503 with Retry-After and the health endpoint reports `jwks: unavailable`, and the Cognito JWKS URL is the one public egress allowed for the API task; the D13 eval baseline runs as a one-off Fargate task with the same task role inside the VPC; RDS Postgres with KMS; two Object-Locked buckets with retention written down; `bedrock` provider in the registry with the enclave guard requiring the VPC endpoint hostname; Guardrails id in settings; Penny deployed as-is to Fargate in the dev account; the D13 eval baseline on Bedrock; six CloudWatch alarms delivered by SNS email (REV-4, D9, 2026-09-30): ECS running tasks below one, ALB 5xx at least one in five minutes, `reviews_abandoned` at least one, `auth_503_jwks` at least one, RDS free storage under 20 percent or CPU over 80 percent for 15 minutes, Bedrock throttles at least five in five minutes. Human ~1 week plus half a day / CC+gstack ~1 day. The `local` provider baseline is not required; D13's baseline is on the production model.
 - **Milestone 1a, then:** items 1 to 8 below, in the dev account, single tenant.
 - **Milestone 1b:** second tenant and cross-tenant tests, WAF and CloudFront, consent table, the deferred connect states, prompt-retention review; then Milestone 2 as designed.
 
 ### Milestone 1a items
 
 1. `penny_ledger`: schema and Alembic migrations that apply on both engines. Money is `Decimal` in the domain, NUMERIC(18,2) on Postgres, and TEXT-encoded Decimal on SQLite through a type adapter (SQLite's NUMERIC affinity would store cents as REAL); a test asserts a six-month balance identity holds to the cent on both engines. SQLite is the fixtures-only development configuration; CI runs both engines on fixtures, SQLite in-process and Postgres as a service container, for the migrations and the balance-identity test; Postgres in the dev account is the 1a runtime. `tenant_id` on every row and every repository method from the first migration, with one provisioned tenant; the cross-tenant read test with a second tenant is 1b.
-2. `audit_events` from the first upload (R3): uploads, mapping confirmations, syncs, chat turns, review generation and dismissal. It is also the source of the weekly-use metric in premise 6. Per-tenant envelope encryption with KMS on descriptor, counterparty and provenance columns from the first upload.
+2. `audit_events` from the first upload (R3): uploads, mapping confirmations, syncs, chat turns, review generation and dismissal. Sessions and turns move from memory to Postgres in the same migration set: `PostgresSessionRepository` behind the existing `SessionRepository` port, `sessions` and `turns` tables with tenant_id and a TTL sweep on read (eng review R4, D5, 2026-09-30). It is also the source of the weekly-use metric in premise 6. Per-tenant envelope encryption with KMS on descriptor, counterparty and provenance columns from the first upload.
 3. Upload path: `POST /uploads` returning 202 with a run id, `GET /runs/{run_id}` with backoff polling (design D17), BackgroundTask execution (no worker loop until 1b's job table) with a stale-run rule: a run with no terminal state and no heartbeat for 15 minutes is marked failed with cause "interrupted" on the next poll, and the founder re-uploads, `FileUploadAdapter` for CSV and XLSX with the model-proposed mapping catalog (date format, sign or debit/credit convention, decimal convention, native id, proposed account), the account proposal sentence (design D15), the three-shape mapping confirm (design D16).
 4. Reconciliation stages as designed: invariants with zero rows skipped; balance identity whenever the file carries balances, with running-balance derivation; dedup by native id or occurrence index; transfer pairing with tie-breaks, every formed pair listed in the report; re-upload preview with Replace or Keep both (design D21); atomic commit with a tenant-global sync version; the source report as current state with the delta line.
 5. Connect screen on the existing web client (sign-in already in place from Milestone 0) with the 1a states: as-of line from `GET /snapshot` (design D20), anchor block, account rows, run sub-rows (reading, checking totals, needs confirmation for mapping, account and re-upload preview, blocked, failed on our side with cause), Attention copy for an unfixable file (design D18). Deferred to 1b: account link proposed, needs_reauth and Reconnect, the second-tenant provisioning states.
 6. Consumer tool pack, read-only over the pinned snapshot, every figure carrying a `figure_id` with `Figure` persistence and `explain_number` moved from Milestone 2 into 1a so that every suggested cut is explainable (design D19):
    - `list_recurring_charges`: same normalized merchant, three or more occurrences, cadence 25 to 35 days or 6 to 8 or 13 to 15 days, amounts within 10 percent of each other; reports cadence, last amount and annualized cost.
    - `rising_categories`: per category, compare the last complete calendar month in the snapshot with the mean of the three complete months before it (the partial current month is excluded); flagged when the last complete month exceeds that mean by 15 percent and by at least $50; reports the delta annualized (delta times twelve).
-   - Unusual merchants: not a new tool; an internal filter inside `suggest_cuts` over the existing `detect_anomalies` output, keeping first-seen merchants whose amount exceeds twice the category median. New registered tools in 1a are therefore three: `list_recurring_charges`, `rising_categories`, `suggest_cuts`.
+   - Unusual merchants: not a new tool; an internal filter inside `suggest_cuts` over the existing `detect_anomalies` output, keeping first-seen merchants (exactly one charge in the snapshot) whose `times_category_average` is at least 2.0, that is twice the category average as `detect_anomalies` already reports it (R2, D3, 2026-09-30). New registered tools in 1a are therefore three: `list_recurring_charges`, `rising_categories`, `suggest_cuts`.
    - `suggest_cuts`: composes the three sources into one list in two sections. Section one, ranked by dollars per year: recurring charges by cadence-annualized amount, rising categories by annualized delta. Section two, labelled one-off and ranked by amount: unusual merchants by their single amount, never annualized. Each entry carries its source, its figure id, and the rows behind it.
 7. Weekly review: generated lazily on the first chat turn or `GET /snapshot` after Sunday 00:00 in the tenant's timezone (a `timezone` column on Tenant, provisioned with the founder's zone), from the latest committed snapshot, generated in a BackgroundTask on that request (the triggering request is not delayed; a row with generated_at null marks a generation in flight so it is never started twice; a row with generated_at null older than 15 minutes counts as abandoned, the next trigger regenerates it in place and writes `review_abandoned` to `audit_events` with the cause (REV-1, D6, 2026-09-30); the component appears on the next `GET /snapshot`), persisted in a `reviews` table keyed by (tenant_id, week_start) with snapshot_version, generated_at, dismissed_at and body, and written to `audit_events` as review_generated (tenant_id, review id, snapshot_version). Preconditions: no review without a committed snapshot; when snapshot_version is unchanged since the previous review, a new review is still generated with the same cuts and a rotated question, so the weekly habit holds. Rendered by a new server-owned component `weekly-review` pinned at the top of the thread until dismissed (`POST /reviews/{id}/dismiss`, which sets dismissed_at and writes an audit event) or a newer review exists. Content: coverage line; the top three cuts, taken from section one of `suggest_cuts` and falling back to section two entries labelled one-off when section one has fewer than three; when fewer than three cuts exist, including zero, the component still renders the coverage line and the question, and the cuts block reads "No cuts to suggest yet. Penny needs about three months of data to spot a pattern."; and one question chosen from a fixed templated set driven by snapshot state (an unreviewed transfer pair, a run waiting on confirmation, a source whose coverage is more than 14 days old, a category that rose); the model may phrase the review over tool output only and may not add facts. When Guardrails blocks the phrasing call, the review is rendered from the templated text without the model and `review_phrasing_blocked` is written to `audit_events` (REV-3, D8, 2026-09-30). On iOS the same record may become a Sunday notification; that is Open Question 2.
 8. Model: `bedrock` provider from the first upload, Guardrails on every prompt and response, reached only through the VPC interface endpoint. No `local` provider with real data; no public API. When Guardrails blocks a prompt or a response in chat, the stream ends with a server-owned `notice` component reading "Penny can't help with that one." and the turn is written to `audit_events` as `guardrail_blocked` with the Guardrails assessment id and never the content (REV-3, D8, 2026-09-30).
@@ -1074,17 +1074,547 @@ _No new tasks from Section 3, Section 4 and Section 11 beyond those above._
 ### Unresolved Decisions
 None. Every question (D1 to D9) was answered; D4 was re-asked once in plainer words at the founder's request.
 
+## Eng review (plan-eng-review, 2026-09-30, target: this document, revision 3 after the CEO review)
+
+Report file: this document (the selected plan). Base branch main; this branch develop. Search: Aside not installed; host WebSearch used for the three new patterns (PyJWT JWKS client, langchain-aws Bedrock guardrails and endpoint, Starlette BackgroundTask and contextvars).
+
+### Scope Challenge A: assessment
+
+What already solves each sub-problem (authored source, read this session):
+- Recurring detection: `penny/application/insights/recurring.py:54` `RecurringInsights.subscriptions()` groups spend by merchant, requires the enrichment flag `txn.is_recurring` (line 57) and `MIN_CHARGES = 2` (line 40), labels cadence from the median gap with bands weekly ≤10, monthly ≤45, quarterly ≤120, annual ≤400 days (lines 33-38), and reports `amount_varies` when the spread exceeds $1 (line 86). Item 6's `list_recurring_charges` (three or more occurrences, cadence 25-35 / 6-8 / 13-15 days, amounts within 10 percent, no enrichment gate) is a different contract over the same grouping. See R1.
+- Monthly category totals: `TransactionSelector.select(month, category)` (`selection.py:73`) and `SpendingInsights.by_category`; completeness from `penny/domain/periods.py:77` `is_month_complete` and `:102` `last_complete_month`. `rising_categories` composes these; no extraction needed.
+- Outliers: `anomalies.py:86` `_outliers` flags charges more than `OUTLIER_SIGMA = 2.0` standard deviations above the category mean, skips categories under 5 samples, returns at most 10, and each entry carries `category_average` (the mean) and `times_category_average` (lines 105-108). Item 6's filter "first-seen merchants whose amount exceeds twice the category median" cannot be computed from that output (it carries the mean, not the median, and no first-seen flag). See R2.
+- Tool binding: `catalog.py:44` `build_catalog` and `registry.py:112` `ToolRegistry.run` (the only place a tool executes; errors returned as `{"error": ...}`, never raised). Registry insertion order is part of the prompt-cache contract (`registry.py:46-48`): the three new tools append after the ten.
+- Components: `contract.py:16` `CONTRACT` and `SERVER_COMPONENTS` (line 39); `notice` (REV-3) and `weekly-review` (item 7) are new server-owned entries; `web/app.js` dispatches renderers on the component key and placeholder-renders unknown ones.
+- Streaming errors: `routes.py:105` `_jsonl` turns any exception into `try-again-error`; `chat_runtime.py:186` already yields `try-again-error` on an empty turn. The REV-3 `notice` must be yielded by the runtime before `_jsonl`'s catch-all sees the exception.
+- Composition: `container.py:55-63` builds one process-wide `JsonTransactionRepository` and `InsightService`; `greeting.py:50` and every tool read through them. The first doc's R2 (`Container.for_request(ctx)`, snapshot view) and R12 (LRU) govern the change; nothing in revision 3 alters that.
+- Model factory: `model_factory.py:24` has `anthropic` and `local` branches; `bedrock` is new. The enclave guard `_host_is_private` (`models.py:105`) accepts loopback, RFC 1918, link-local and the suffixes `.local .internal .svc .cluster.local` (line 102); a Bedrock VPC endpoint DNS name (`vpce-….bedrock-runtime.<region>.vpce.amazonaws.com`) matches none of these, so the guard needs a Bedrock-specific rule. See Architecture finding A3.
+- Credentials: `container.py:99` skips the key check for `local` only; a `bedrock` branch must skip it too (task role).
+- Sessions: `container.py:79` `InMemorySessionRepository`; revision 2 names "sessions repository backed by Postgres" without a milestone. See R4.
+- Health: `routes.py:128` `/api/health` returns tools and dataset coverage; after Milestone 0 every route is behind the JWKS middleware, and the ALB target health check has no unauthenticated path. See R5.
+- Eval: `eval/judge.py:96` and `eval/analyze.py:83` build the judge and analyst through `chat_model("judge")` / `chat_model("analyst")`, so the D13 baseline on Bedrock works once the registry entries for judge and analyst point at Bedrock models (revision 2: Haiku for judge). No change needed beyond registry config.
+- Amounts: `penny/domain/models.py:39` `amount: float`; `trends.py:43` `defaultdict(float)` and `0.0` defaults; `anomalies.py:62` groups on `(merchant, amount)` float keys. The first doc's R1 (Decimal) and R10 (differential regression test over the ten insights) already govern the sweep; the lines above are where it lands (Code Quality C2).
+- Context propagation: `context.py:18` ContextVar set by the middleware; a Starlette BackgroundTask runs after the response is sent, and the request context is not reliably available there (search: pass explicit arguments). Architecture A2.
+
+Minimum change: the plan as approved by the CEO review is already the reduced scope (RED-1 deferred). No further cut is proposed: every remaining item is a trust or habit mechanism the founder kept (prior learning applied: founder-keeps-trust-features-in-scope, 9/10, 2026-09-30).
+
+Complexity check (planned work counted once, estimates): new packages `penny_ledger` (≈9 files: models, repositories, migrations ×3, audit kinds, reviews, figures) and `penny_ingest` (≈6 files: adapter, mapping catalog, reconciliation stages, runs); `penny/` changes: 3 insight modules, 1 composer, 1 reviews service, 1 auth module, 1 bedrock branch, catalog and contract edits, routes for uploads, runs, snapshot, reviews, figures, settings, container (≈12 files); `web/` minimal view (2 files); tests (≈15 files); infra (≈4 files). Roughly 48 files and 12 new classes or services. The gate trips.
+
+Search check: JWKS validation → PyJWT's `PyJWKClient` caches the key set and refreshes once on an unknown `kid` [Layer 1], which is exactly REV-2's contract; add the one-per-minute refresh limit and the 503-on-empty-cache rule around it. Bedrock → `langchain-aws` `ChatBedrockConverse` takes `endpoint_url` and a `guardrails={"guardrailId","guardrailVersion"}` mapping [Layer 1]; with a VPC endpoint without private DNS the runtime endpoint must be set explicitly, which is what the enclave guard checks. BackgroundTask → contextvars are not reliably available after the response is sent [Layer 1 pitfall]; pass tenant_id, snapshot_version and request_id as arguments.
+
+TODOS cross-reference: nothing in TODOS.md blocks this plan; audit retention (P3) fits after item 2; DESIGN.md (P2) is independent; the polished screen entry is this plan's own RED-1 deferral. No new TODO surfaced by this review beyond the decisions below.
+
+Completeness: every remedy below is offered at full coverage; CC effort for the complete version is minutes.
+
+Distribution: one container image built in CI and pushed to ECR, deployed by the pipeline in Section 9 of the CEO review; the one-off Fargate tasks (migrations, eval) use the same image. No other artifact.
+
+### Scope Challenge B: complexity selectors (resolved by exact prior answers)
+
+- Feature cuts: asked and answered today in the CEO review, one per item (RED-1 D2 A deferred; RED-2 D3 B, RED-3 D4 B, RED-4 D5 B kept). No new cut is proposed, so no cut question is re-asked.
+- Structure: the first doc's eng review asked the structure question for this arrangement and the founder chose `Original arrangement` (three packages `penny/`, `penny_ledger/`, `penny_ingest/`; two images; D2, 2026-09-30, recorded in that doc's "Eng review scope record"). Revision 3 states the arrangement stands unchanged, so that exact answer resolves this gate.
+- Scope record: feature answers: RED-1 to RED-4 (CEO review, 2026-09-30); structure: A) Original arrangement (first doc eng review D2, 2026-09-30); accepted scope: Milestone 0 and Milestone 1a items 1 to 8 with the minimal connect view, plus REV-1 to REV-4; pending remedies: R1 to R5 below.
+
+### Scope Challenge C: findings
+
+1. [P2] (confidence: 9/10) `penny/application/insights/recurring.py:57,40` — `list_recurring_charges` cannot reuse `subscriptions()` as written: the enrichment gate and `MIN_CHARGES = 2` differ from item 6's behavioural contract. Remedy pending: R1.
+2. [P2] (confidence: 9/10) `penny/application/insights/anomalies.py:105-108` — the unusual-merchant filter in item 6 names a statistic (`twice the category median`) and a flag (`first-seen`) that `detect_anomalies` does not emit. Remedy pending: R2.
+3. [P2] (confidence: 8/10) `penny/application/tools/registry.py:112` — figure minting for the three tools has no named seam; the plan says "every figure carrying a figure_id" without saying where ids are minted and persisted. Remedy pending: R3.
+4. [P1] (confidence: 9/10) `penny/composition/container.py:79` — sessions are in-memory; every deploy in 1a drops the founder's conversation, and revision 2's "sessions backed by Postgres" has no milestone. Remedy pending: R4.
+5. [P1] (confidence: 9/10) `penny/presentation/http/routes.py:128` — after Milestone 0 the ALB health check has no unauthenticated target, and `/api/health` exposes the tool list and dataset coverage. Remedy pending: R5.
+
+Scope Challenge result: scope accepted as-is (no reduction beyond the CEO review's, which is already in the plan).
+
+## Decision ledger (eng review)
+
+### R1: Recurrence grouping shared between `list_subscriptions` and `list_recurring_charges`
+Finding: 1, P2, confidence 9/10, `penny/application/insights/recurring.py:54-92`, reviewer: this eng review
+Plan baseline: item 6 specifies `list_recurring_charges` (same normalized merchant, three or more occurrences, cadence 25-35 / 6-8 / 13-15 days, amounts within 10 percent); the existing `list_subscriptions` contract (enrichment flag, two charges, median-gap bands, `amount_varies`) is approved behaviour protected by R10. No approval yet for how the two relate.
+Runtime evidence: `recurring.py:55-58` groups by merchant with the `is_recurring` gate; lines 65-69 compute gaps, median gap, typical amount and spread; `_cadence` at 43 maps the median gap to a band. The same grouping and gap statistics are what item 6 needs, with different thresholds and no gate.
+Comparison grid:
+
+| Choice | Current | A (extract grouping helper) | B (separate implementation) |
+|---|---|---|---|
+| R1 grouping + gap statistics | inline in `subscriptions()` | one module-level helper `recurring_groups(transactions, *, require_flag, min_charges) -> list[MerchantSeries]` returning charges, gaps, median gap, amounts, spread; `subscriptions()` calls it with `require_flag=True, min_charges=2`; `list_recurring_charges` with `require_flag=False, min_charges=3` and applies its own cadence windows and 10 percent test on the series | `list_recurring_charges` re-implements grouping and gap statistics in its own module |
+| `list_subscriptions` behaviour (R10) | fixed | unchanged; the R10 differential test proves it | unchanged |
+| Cadence labels for the new tool | pending | computed by the new tool from the series' median gap against item 6's windows (not the bands at line 33) | same |
+| Estimated lines | — | removed ~15, added ~35 helper + ~45 tool; saved vs B ~30 implementation lines; tests: one helper test file plus the tool tests | added ~80 |
+| Risk | — | one shared grouping; a bug shows in both tools, caught by R10's differential test | drift between two groupings (same merchant counted differently by the two tools) |
+| Pending elsewhere | R2-R5 pending | R2-R5 pending | R2-R5 pending |
+
+Question D2:
+D2 — R1: Share the recurrence grouping between the old subscriptions tool and the new recurring-charges tool?
+Project/branch/task: Zafin-pfm-agent on develop, plan-eng-review of revision 3, Scope Challenge finding 1.
+ELI10: Penny already has a "show me my subscriptions" tool that groups charges by merchant and measures the gap between them. The new "recurring charges" tool for cuts needs the same grouping with stricter rules: three charges, tighter gaps, amounts within 10 percent, and no reliance on the enrichment flag. Either both tools call one small grouping helper with different settings, or the new tool copies the grouping. A copy means the same merchant can look recurring to one tool and not the other, and you would see two different answers to "what do I pay monthly".
+Stakes if we pick wrong: two tools disagreeing about the same merchant in the same chat, or a shared helper that changes the old tool's answers by accident.
+Recommendation: A) Extract because both tools need the same grouping and gap statistics, the differential test from R10 already guards the old tool, and the helper is one function with two parameters.
+Completeness: A=10/10, B=7/10
+Pros / cons:
+A) Extract `recurring_groups` helper, both tools call it (recommended)
+  ✅ One grouping means one answer per merchant across the subscriptions tool, the cuts tool and the weekly review
+  ✅ The old tool's output is proven unchanged by the R10 differential test before and after the extraction
+  ❌ Touches `recurring.py`, an approved module, so the extraction lands under R10's regression run (human: ~3 h / CC: ~10 min)
+B) Separate implementation in the new module
+  ✅ `recurring.py` is not touched at all
+  ✅ The new tool's thresholds live entirely in one new file
+  ❌ Two groupings drift; the same merchant can be "monthly" in one tool and absent from the other (human: ~3 h / CC: ~10 min)
+Net: one grouping with two settings, or two groupings that can disagree.
+Header: R1 recurrence
+Options:
+A) Extract shared grouping helper (recommended)
+`recurring_groups(transactions, *, require_flag, min_charges)` in `recurring.py`; `subscriptions()` calls it with the flag and two charges; `list_recurring_charges` calls it without the flag and three charges, then applies item 6's windows and 10 percent test. Effort S (human ~3 h / CC ~10 min), risk low under R10's differential test, maintenance: one grouping. ✅ One answer per merchant. ✅ Old tool proven unchanged. ❌ Touches an approved module.
+B) Separate implementation
+New module groups and measures gaps on its own; `recurring.py` untouched. Effort S (human ~3 h / CC ~10 min), risk medium (drift), maintenance: two groupings. ✅ No touch to recurring.py. ✅ Thresholds in one new file. ❌ Tools can disagree about a merchant.
+
+State: approved
+Actual answer: A) Extract shared grouping helper (D2, 2026-09-30)
+Accepted scope: `recurring_groups(transactions, *, require_flag, min_charges)` in `penny/application/insights/recurring.py`; `subscriptions()` calls it with `require_flag=True, min_charges=2`; `list_recurring_charges` calls it with `require_flag=False, min_charges=3` and applies item 6's cadence windows and 10 percent test; the R10 differential test runs before and after the extraction; helper test file plus the tool tests.
+History: none
+
+### R2: Definition of "unusual merchants" inside `suggest_cuts`
+Finding: 2, P2, confidence 9/10, `penny/application/insights/anomalies.py:86-112`, reviewer: this eng review
+Plan baseline: item 6 (approved in revision 3, R3-12): "an internal filter inside `suggest_cuts` over the existing `detect_anomalies` output, keeping first-seen merchants whose amount exceeds twice the category median". No approval for how the statistic is computed.
+Runtime evidence: `_outliers` (line 86) flags charges above mean + 2σ within a category with at least 5 samples, returns at most 10 sorted by amount, and each entry carries `category_average` (the mean, line 106) and `times_category_average` (line 107). Neither the category median nor a first-seen flag is emitted; the mean-based threshold already implies a large multiple of the typical charge.
+Comparison grid:
+
+| Choice | Current | A (reuse outlier output) | B (own median computation) |
+|---|---|---|---|
+| R2 unusual-merchant statistic | "twice the category median" (not computable from the output) | `detect_anomalies` outliers with `times_category_average >= 2.0` (twice the category mean, as the existing tool already reports) | `suggest_cuts` computes the category median itself over the snapshot and keeps charges above twice it |
+| First-seen test | named, not computable | merchant has exactly one charge in the snapshot (count from the same snapshot pass) | same |
+| Sample floor and cap | `MIN_SAMPLE_FOR_OUTLIERS = 5`, `MAX_OUTLIERS_REPORTED = 10` | inherited from the existing tool | own floor (5) and no cap, so more one-offs can appear in section two |
+| Plan text change | — | item 6 reworded: "twice the category average" | item 6 kept as "median"; new statistic code (~25 lines) |
+| Consistency with chat | — | the same charge Penny calls "unusual" in chat is the one in section two | section two can list a charge the anomalies tool does not flag |
+| Pending elsewhere | R3-R5 pending | R3-R5 pending | R3-R5 pending |
+
+Question D3:
+D3 — R2: How does `suggest_cuts` decide a merchant is unusual?
+Project/branch/task: Zafin-pfm-agent on develop, plan-eng-review of revision 3, Scope Challenge finding 2.
+ELI10: The plan says the cuts list should include one-off "unusual merchants": places you paid once, for far more than you usually pay in that category. It describes them as "twice the category median", but the existing anomaly tool measures against the category average and only reports charges more than two standard deviations above it. The question is whether the cuts list reuses that existing flag (and the plan text changes one word, median to average) or computes its own median-based statistic. Reusing means the same charge Penny calls unusual in chat is the one that shows up as a one-off cut.
+Stakes if we pick wrong: a one-off cut that the anomalies tool would not flag, so two parts of Penny disagree about the same charge, or a plan sentence that promises a statistic the code never computes.
+Recommendation: A) Reuse because consistency between chat and the cuts list is the trust story, and the existing flag already carries the multiple the filter needs.
+Completeness: A=10/10, B=9/10
+Pros / cons:
+A) Reuse `detect_anomalies` outliers, first-seen and at least 2x the category average (recommended)
+  ✅ The same charge is "unusual" in chat and in the cuts list; one statistic, one caveat text
+  ✅ Zero new statistics code; the filter is a count and a comparison over existing output (human: ~1 h / CC: ~5 min)
+  ❌ Item 6 must be reworded from "median" to "average", and the 10-outlier cap applies
+B) Compute the category median inside `suggest_cuts`
+  ✅ Median resists a single huge charge inflating the threshold
+  ✅ No cap, so every one-off can appear
+  ❌ Two definitions of unusual in one product; ~25 lines of new statistics with their own tests (human: ~3 h / CC: ~10 min)
+Net: one shared definition of unusual, or a second one that is slightly more robust.
+Header: R2 unusual merchants
+Options:
+A) Reuse anomalies outliers (recommended)
+Section two = `detect_anomalies().unusual_transactions` filtered to merchants with exactly one charge in the snapshot and `times_category_average >= 2.0`; item 6 reworded to "twice the category average". Effort S (human ~1 h / CC ~5 min), risk low, maintenance: none new. ✅ Same flag in chat and cuts. ✅ No new statistics. ❌ One word in the plan changes; 10-outlier cap applies.
+B) Own median statistic
+`suggest_cuts` computes per-category medians over the snapshot and keeps first-seen charges above twice the median; item 6 kept as written. Effort S (human ~3 h / CC ~10 min), risk medium (two definitions), maintenance: one more statistic. ✅ Robust to a single outlier. ✅ No cap. ❌ Chat and cuts can disagree.
+
+State: approved
+Actual answer: A) Reuse anomalies outliers (D3, 2026-09-30)
+Accepted scope: section two of `suggest_cuts` = `detect_anomalies().unusual_transactions` filtered to merchants with exactly one charge in the snapshot and `times_category_average >= 2.0`; item 6 reworded to "twice the category average"; the existing sample floor (5) and cap (10) apply; tests for the filter (one charge vs two, 1.9 vs 2.0).
+History: none
+
+### R3: Where figure ids are minted and persisted
+Finding: 3, P2, confidence 8/10, `penny/application/tools/registry.py:112-128`, reviewer: this eng review
+Plan baseline: item 6 (RED-3 kept, D4 B): every figure carries a `figure_id`, `Figure` persistence and `explain_number` in 1a; design D19. No approval for the seam that mints and persists figures.
+Runtime evidence: `ToolRegistry.run` (line 112) is documented as "the only place a tool is executed" and already wraps every handler (validation at 118, error capture at 125-128). Handlers return plain dicts. The three new tools return entries with `value`, `source`, `rows`; the weekly review calls `suggest_cuts` outside a chat turn.
+Comparison grid:
+
+| Choice | Current | A (registry post-run hook) | B (per-tool helper call) |
+|---|---|---|---|
+| R3 minting seam | unspecified | `ToolRegistry.run` persists every `figures[]` entry a handler returns (via a `FigureRepository` port injected into the registry), stamps `figure_id` on each, and records tool name, snapshot_version, computed_at; handlers stay pure | each of the three handlers (and the review service) calls `figures.record(...)` itself before returning |
+| Coverage of the weekly review path | — | the review calls `suggest_cuts` through the registry (`registry.run("suggest_cuts", {})`), so its figures are minted the same way | the review calls the handler directly and must also call the helper |
+| Persist failure (Section 2 of the CEO review: return the figure without an id, audit `figure_persist_failed`) | approved behaviour | implemented once in the hook | implemented in four places |
+| Existing ten tools | unchanged | unchanged (no `figures[]` key, no hook effect) | unchanged |
+| Tests | — | one hook test (stamp, persist, failure path) plus the tools' output-shape tests | four call sites each need the failure-path test |
+| Pending elsewhere | R4, R5 pending | R4, R5 pending | R4, R5 pending |
+
+Question D4:
+D4 — R3: Mint figure ids in the tool registry, or in each tool?
+Project/branch/task: Zafin-pfm-agent on develop, plan-eng-review of revision 3, Scope Challenge finding 3.
+ELI10: Every number in a suggested cut gets an id so you can tap it later and see its rows. Something has to hand out those ids and save the record. Penny already funnels every tool call through one function, the registry's `run`, which validates arguments and catches errors. Putting the id minting there means a tool just returns its figures and the registry does the saving, for the three new tools and for the Sunday review alike. The alternative is each tool calling a save helper itself, four times, each with its own failure handling.
+Stakes if we pick wrong: a figure that appears in the weekly review with no id (so "explain" does nothing) because one call site forgot the helper, or a registry hook that quietly does more than "run the tool".
+Recommendation: A) Registry hook because one guard in the shared function beats a guard in every caller, and the review path gets it for free.
+Completeness: A=10/10, B=8/10
+Pros / cons:
+A) Registry post-run hook (recommended)
+  ✅ Every figure from any tool, in chat or in the Sunday review, is minted and saved by the same twenty lines
+  ✅ The persist-failure behaviour (figure without an id, audit event) is implemented and tested once
+  ❌ The registry gains a repository dependency and one more responsibility (human: ~3 h / CC: ~10 min)
+B) Per-tool helper call
+  ✅ The registry stays exactly what it is today
+  ✅ Each tool is explicit about which values are figures
+  ❌ Four call sites, four failure paths, and the review path can miss the call (human: ~4 h / CC: ~15 min)
+Net: one hook everyone passes through, or four explicit calls that can drift.
+Header: R3 figure minting
+Options:
+A) Registry post-run hook (recommended)
+`ToolRegistry(specs, figures=FigureRepository)`; after a successful handler call, every entry in the result's `figures[]` gets a `figure_id`, persisted with tool name, snapshot_version, row ids and computed_at; on persist failure the entry is returned without an id and `figure_persist_failed` is audited. The review service invokes `suggest_cuts` through the registry. Effort S (human ~3 h / CC ~10 min), risk low, maintenance: one seam. ✅ Every path covered. ✅ Failure handled once. ❌ Registry gains a dependency.
+B) Per-tool helper call
+Each new tool and the review service call `figures.record(...)` before returning. Effort S (human ~4 h / CC ~15 min), risk medium (missed call site), maintenance: four sites. ✅ Registry untouched. ✅ Explicit per tool. ❌ Drift and a missable review path.
+
+State: approved
+Actual answer: A) Registry post-run hook (D4, 2026-09-30)
+Accepted scope: `ToolRegistry(specs, figures=FigureRepository)`; after a successful handler call every entry in the result's `figures[]` gets a `figure_id` and is persisted with tool name, snapshot_version, row ids and computed_at; persist failure returns the entry without an id and audits `figure_persist_failed`; the review service invokes `suggest_cuts` through the registry; one hook test (stamp, persist, failure) plus the tools' output-shape tests.
+History: none
+
+### R4: Session persistence milestone
+Finding: 4, P1, confidence 9/10, `penny/composition/container.py:77-80`, reviewer: this eng review
+Plan baseline: revision 2 (first doc, "Target deployment on AWS"): "RDS Postgres (the ledger) also holds sessions and turns" and "sessions repository backed by Postgres" in the implied code changes, with no milestone assigned; revision 3 Milestone 0 deploys "Penny as-is". No approval for when sessions move.
+Runtime evidence: `container.py:79` builds `InMemorySessionRepository(settings().session_ttl_seconds)`; sessions live in the process. On Fargate a deploy, a crash or a second task loses or splits every conversation; the chat endpoint keys history by session id (`routes.py:177`).
+Comparison grid:
+
+| Choice | Current | A (Postgres sessions in 1a item 2) | B (Postgres sessions in Milestone 0) | C (in-memory through 1a) |
+|---|---|---|---|---|
+| R4 session store | in-memory | `PostgresSessionRepository` behind the existing `SessionRepository` port, in the same Alembic migration set as item 2 (`sessions`, `turns` tables, tenant_id, TTL sweep on read) | same repository, built before the first deploy, before `penny_ledger` exists | unchanged; deploys drop conversations |
+| Milestone 0 acceptance | greeting and one question | unchanged | unchanged, plus sessions survive a redeploy | unchanged |
+| Founder's month (premise 6) | — | conversations survive deploys from the first upload | same | each deploy drops the thread; the weekly review is unaffected (own table) |
+| Effort | — | human ~1 day / CC ~30 min inside item 2 | same, but a separate migration lane before the ledger exists | none |
+| Pending elsewhere | R5 pending | R5 pending | R5 pending | R5 pending |
+
+Question D5:
+D5 — R4: When do sessions move from memory to Postgres?
+Project/branch/task: Zafin-pfm-agent on develop, plan-eng-review of revision 3, Scope Challenge finding 4.
+ELI10: Penny keeps each conversation in the server's memory today. On AWS that memory is gone on every deploy or restart, so mid-month you would open Penny and your thread would be empty. Revision 2 already decided sessions belong in the ledger database but never said when. The choice is to build the Postgres session store with the first ledger migrations in 1a, build it earlier in Milestone 0 before the ledger exists, or accept dropped threads during your month.
+Stakes if we pick wrong: a conversation that vanishes on the first deploy during the month you are measuring weekly use, or a separate migration lane built before the schema it belongs to exists.
+Recommendation: A) 1a item 2 because it lands in the same migration set as the audit table, and Milestone 0's acceptance test needs only one question, not a durable thread.
+Completeness: A=10/10, B=10/10, C=5/10
+Pros / cons:
+A) Postgres sessions in 1a with item 2 (recommended)
+  ✅ One migration set, one tenant_id convention, one deploy: sessions are durable from the first real upload
+  ✅ Milestone 0 stays "Penny as-is", which keeps its acceptance test small
+  ❌ Between Milestone 0 and 1a, redeploys drop the sample-data conversation (nobody is measured then)
+B) Postgres sessions in Milestone 0
+  ✅ Durable threads from the very first deploy
+  ✅ Exercises RDS connectivity before the ledger work starts
+  ❌ A migration lane before `penny_ledger` exists, then merged into it in 1a (human: ~1 day / CC: ~30 min, plus rework)
+C) In-memory through 1a
+  ✅ No work
+  ✅ The weekly review has its own table and is unaffected
+  ❌ Every deploy during the measured month drops your thread; two tasks would split it
+Net: durable threads with the ledger, earlier with rework, or dropped threads during the month.
+Header: R4 sessions
+Options:
+A) Postgres sessions in 1a item 2 (recommended)
+`PostgresSessionRepository` behind the existing port, tables in item 2's migration set with tenant_id and a TTL sweep on read. Effort S (human ~1 day / CC ~30 min), risk low, maintenance: one store. ✅ One migration set. ✅ Milestone 0 unchanged. ❌ Sample-data threads drop until 1a.
+B) Postgres sessions in Milestone 0
+Same repository, built and migrated before the ledger. Effort S plus rework, risk low, maintenance: one store. ✅ Durable from day one. ✅ Early RDS check. ❌ Separate migration lane before penny_ledger.
+C) In-memory through 1a
+No change. Effort none, risk medium for the month. ✅ No work. ✅ Review unaffected. ❌ Threads drop on every deploy.
+
+State: approved
+Actual answer: A) Postgres sessions in 1a item 2 (D5, 2026-09-30)
+Accepted scope: `PostgresSessionRepository` behind the existing `SessionRepository` port; `sessions` and `turns` tables in item 2's migration set with tenant_id and a TTL sweep on read; container wires it in the deployed configuration, in-memory stays for fixtures; tests: round trip, TTL sweep, tenant scoping.
+History: none
+
+### R5: Unauthenticated health check after Milestone 0
+Finding: 5, P1, confidence 9/10, `penny/presentation/http/routes.py:121-143`, reviewer: this eng review
+Plan baseline: Milestone 0 (R3-1, REV-2): every route returns 401 without a valid token; the ALB target group needs a health check path; `/api/health` today returns model, provider, endpoint, tools and dataset coverage. No approval for how the ALB probes the task.
+Runtime evidence: `routes.py:128-143` builds the health body including `container.tool_registry().names` and `_coverage()`; `middleware.py` will validate the bearer token on every path after Milestone 0. An ALB health check sends no token.
+Comparison grid:
+
+| Choice | Current | A (split: `/healthz` + `/api/health`) | B (exempt `/api/health`) | C (probe a static file) |
+|---|---|---|---|---|
+| R5 ALB probe target | none | new `GET /healthz`, exempt from auth, returns `{"status":"ok","jwks":"ok|unavailable"}` and nothing else; ALB probes it | `/api/health` exempt from auth as is | ALB probes `/` (the static `web/` index) |
+| `/api/health` (full body) | unauthenticated | stays behind auth; the web client calls it after sign-in | unauthenticated: tool list and dataset coverage readable by anyone who reaches the ALB | behind auth |
+| Liveness truth | — | reflects the app process and the JWKS cache (REV-2 health field) | same | only that static files serve; a dead JWKS cache passes |
+| Exposure in 1a / 1b | — | none | low in 1a (security group by IP), real in 1b (public via CloudFront) | none |
+| Tests | — | `/healthz` 200 without token; `/api/health` 401 without token, 200 with | one | one |
+| Pending elsewhere | none | none | none | none |
+
+Question D6:
+D6 — R5: How does the load balancer check that Penny is alive without a token?
+Project/branch/task: Zafin-pfm-agent on develop, plan-eng-review of revision 3, Scope Challenge finding 5.
+ELI10: After Milestone 0 every request without a sign-in token gets a 401. The load balancer checks the service is alive by calling a URL every few seconds, and it has no token, so it would see 401 and stop sending traffic. Penny's existing health URL also lists the tools and describes your dataset, which is fine for you but not for a stranger. The clean fix is a second tiny URL that says only "ok" and whether the sign-in keys are loaded, left open for the load balancer, while the full health page stays behind sign-in.
+Stakes if we pick wrong: a service the load balancer thinks is dead the moment auth is on, or a health page that tells anyone at the door what data Penny holds.
+Recommendation: A) Split because a liveness probe should carry nothing but liveness, and the full page keeps its current use for the signed-in client.
+Completeness: A=10/10, B=6/10, C=4/10
+Pros / cons:
+A) Add `/healthz` for the probe, keep `/api/health` behind auth (recommended)
+  ✅ The probe reflects the real process state, including the JWKS cache from REV-2, and leaks nothing
+  ✅ One new route of ten lines and two tests (human: ~1 h / CC: ~5 min)
+  ❌ Two health endpoints to keep in mind; the ALB target group must point at the new one
+B) Exempt `/api/health` from auth
+  ✅ No new route; the ALB probes the existing path
+  ✅ The web client keeps calling it before sign-in
+  ❌ Tool list and dataset coverage readable without a token, which 1b's public edge would expose
+C) Probe the static index
+  ✅ Nothing changes in the API
+  ✅ Works today
+  ❌ A dead JWKS cache or a broken database still passes the probe; the ALB keeps routing to a task that returns 503s
+Net: an honest probe that leaks nothing, or a convenient one that leaks or lies.
+Header: R5 health probe
+Options:
+A) Split: /healthz probe + authed /api/health (recommended)
+New `GET /healthz` exempt from the middleware, returning only status and the JWKS cache state; the ALB target group health check points at it; `/api/health` stays behind auth. Effort S (human ~1 h / CC ~5 min), risk low, maintenance: two routes. ✅ Honest, leak-free probe. ✅ Ten lines, two tests. ❌ Two endpoints.
+B) Exempt /api/health
+Middleware allow-lists `/api/health`; ALB probes it. Effort S (human ~20 min / CC ~2 min), risk medium (exposure in 1b), maintenance: none. ✅ No new route. ✅ Client unchanged. ❌ Tools and coverage readable without a token.
+C) Probe the static index
+ALB health check on `/`. Effort none, risk medium (false liveness), maintenance: none. ✅ No API change. ✅ Works today. ❌ Probe passes while the API is broken.
+
+State: approved
+Actual answer: A) Split: /healthz probe + authed /api/health (D6, 2026-09-30)
+Accepted scope: `GET /healthz` exempt from the middleware, body `{"status":"ok","jwks":"ok|unavailable"}` only; ALB target group health check path `/healthz`; `/api/health` unchanged and behind auth; tests: `/healthz` 200 without token, `/api/health` 401 without token and 200 with.
+History: none
+
+Approval readiness: PASS. Checked rows: R1 (D2 A), R2 (D3 A), R3 (D4 A), R4 (D5 A), R5 (D6 A); carried forward from the CEO review: REV-1 (D6 A there), REV-2 (D7 A), REV-3 (D8 A), REV-4 (D9 A), RED-1 to RED-4; from the first doc: R1 to R13 and D2 (original arrangement). No pending remedies remain.
+
+## Section 1: Architecture review (eng)
+
+The CEO review's Section 1 diagram stands; this section adds what reading the code changed.
+
+```text
+  request ──▶ RequestContextMiddleware (verify_bearer: PyJWKClient cache, REV-2) ──▶ route
+                │ tenant_id from tenants(sub)            │
+                ▼                                        ▼
+        Container.for_request(tenant, version)   BackgroundTask(tenant_id, snapshot_version, request_id)   ◀── explicit args, never ContextVar (A2)
+                │                                        │
+        ToolRegistry.run ──▶ handler ──▶ figures[] ──▶ FigureRepository (R3 hook)
+                │                                        └──▶ reviews (item 7, REV-1)  /  runs (item 3)
+        chat_runtime ──▶ ChatBedrockConverse(endpoint_url=vpce, guardrails=…) ──GuardrailIntervention──▶ yield notice (REV-3) before _jsonl's catch-all
+```
+
+Findings (calibrated):
+- A1 [P2] (confidence: 9/10) `penny/application/tools/registry.py:46-49` — the registry's insertion order is the prompt-cache prefix; the three new tools must be appended after the ten in `catalog.py:44`, never inserted. Disposition: implementation rule under item 6; task T5 notes it. No new choice.
+- A2 [P1] (confidence: 8/10) `penny/infrastructure/observability/context.py:18` and `penny/presentation/http/middleware.py:80` — the request ContextVar is set for the request; a Starlette BackgroundTask runs after the response is sent and the context is not guaranteed there (search, Layer 1 pitfall). The upload run and the review generation must receive `tenant_id`, `snapshot_version` and `request_id` as explicit arguments and build their own `Container.for_request`. Disposition: required implementation of the approved BackgroundTask contract (items 3 and 7) and the CEO review's request-id propagation (Section 8); no new behaviour, no new choice. Prior learning applied: penny-singletons-no-tenant (9/10, 2026-09-30).
+- A3 [P1] (confidence: 9/10) `penny/infrastructure/config/models.py:102-124` — `_host_is_private` cannot recognise a Bedrock VPC endpoint DNS name; the approved `bedrock` guard (revision 2: "requiring the VPC endpoint hostname and refusing the public Bedrock hostname") needs its own rule: `settings.bedrock_endpoint_url` hostname must match `^vpce-[a-z0-9-]+\.bedrock-runtime\.<region>\.vpce\.amazonaws\.com$` for the configured region, and `bedrock-runtime.<region>.amazonaws.com` is refused even though private DNS could resolve it, because the guard must not depend on DNS state. Disposition: implementation of the approved contract; no new choice. `_require_credentials` (`container.py:99`) gains a `bedrock` branch that skips the API-key check (task role).
+- A4 [P2] (confidence: 8/10) `penny/infrastructure/llm/model_factory.py:47-50` — `thinking` and `output_config.effort` are Anthropic-API fields; on Bedrock Converse they travel as `additional_model_request_fields`, and `ChatBedrockConverse` takes `guardrails={"guardrailId","guardrailVersion"}` with `streamProcessingMode` (search, Layer 1). The registry entries for chat, greeting, judge and analyst need Bedrock model ids (revision 2: Sonnet for chat, Haiku for greeting and judge). Disposition: implementation of Milestone 0's `bedrock` provider; no new choice.
+- A5 [P2] (confidence: 9/10) `penny/presentation/http/routes.py:105-118` and `penny/infrastructure/llm/chat_runtime.py:170-195` — `_jsonl` converts any exception to `try-again-error`; REV-3's `notice` must be yielded inside `PennyChatRuntime.stream` when the Bedrock client raises the Guardrails intervention, and `notice` must be added to `CONTRACT` and `SERVER_COMPONENTS` (`contract.py:16,39`) with a renderer in `web/app.js`. Disposition: implementation of REV-3; no new choice.
+- A6 [P2] (confidence: 8/10) `penny/composition/container.py:55-63` — the process-wide `InsightService` and `GreetingFacts` (`greeting.py:46`) become per-request under the first doc's R2; the review service and the registry hook (R3) take the per-request container too. Disposition: covered by R2 and R12; no new choice.
+- Production failures per new path: JWKS down (REV-2, 503), Guardrails (REV-3), review crash (REV-1), deploy mid-upload (stale-run rule), RDS failover (atomic commit R2), ALB probe without token (R5). Distribution: one image, CI build to ECR, pipeline deploy, one-off tasks for migrations and eval (Section 9 of the CEO review).
+- Single points of failure and scaling: unchanged from the CEO review (one task, one RDS; job table and Multi-AZ in 1b).
+
+Section 1 dispositions: A1-A6 accepted as implementation notes under existing approvals; 0 new choices. Issues found: 6.
+
+## Section 2: Code quality review (eng)
+
+- C1 [P2] (confidence: 9/10) `recurring.py:54-92` — resolved by R1 (shared `recurring_groups`). Rubric evidence: callers `InsightService.list_subscriptions` (`service.py:77`) and the proposed `list_recurring_charges` (item 6); helper contract: transactions in, per-merchant series with charges, gaps, median gap, amounts and spread out; estimated implementation lines removed 15, added 35, saved vs duplication ~30; tests: helper file plus R10's differential run; blast radius: both tools and the weekly review, all covered by the same tests.
+- C2 [P1] (confidence: 9/10) `penny/domain/models.py:39` `amount: float`, `trends.py:43` `defaultdict(float)` and `0.0` defaults at 54-57, `anomalies.py:62` float dict keys, `selection.py:34-50` float totals — the first doc's R1 (Decimal) lands on these lines; `Decimal + float` raises `TypeError`, so every `0.0` literal and `float` accumulator in the insight modules must become `Decimal("0")`, and `statistics.pstdev` over Decimal returns Decimal (fine). Disposition: required implementation of R1, proven by R10's differential test; no new choice. Prior learning applied: penny-float-amounts (9/10, 2026-09-30).
+- C3 [P2] (confidence: 8/10) `suggest_cuts` composition — keep `collect_sources()`, `rank_section_one()`, `rank_section_two()`, `compose()` as four functions (CEO Section 5); annualization is one pure function `annualize(cadence_days, amount)` used by the recurring tool, the rising tool (delta × 12) and the review's dollars-per-year line. Disposition: implementation guidance; no new choice.
+- C4 [P2] (confidence: 9/10) `registry.py:127` `except Exception` returns `{"error": ...}` to the model. With R3's hook, a persist failure must not be caught by this branch as a tool error: the hook runs after the handler returned and handles `RepositoryError` itself (return the figure without an id, audit). Keep the handler catch as is; it is the model-facing contract.
+- C5 [P2] (confidence: 8/10) `greeting.py:50-94` — the weekly review is a second "Python computes, the model phrases" surface; reuse `GreetingFacts`' shape (a fact dict plus a deterministic `fallback_components`) for the review so REV-3's templated fallback is the same pattern as the greeting fallback at line 111. Disposition: guidance; no new choice.
+- Error handling gaps and edge cases: covered in the CEO review's Section 2 and 4 tables (18 paths, 11 interaction edge cases); this review found no new gap beyond A2-A5 above.
+- Diagrams touched: the first doc's architecture diagram remains accurate; add an inline docstring diagram to `registry.py` for the run → hook → persist sequence (task T5).
+
+Section 2 dispositions: C1 resolved by R1; C2-C5 implementation notes under existing approvals; 0 new choices. Issues found: 5.
+
+## Section 3: Test review (eng)
+
+Framework: pytest (`pyproject.toml`; 19 test files under `tests/`, layers `domain`, `application`, `infrastructure`, `presentation`, `architecture`; `tests/support.py` fixtures; `tests/application/test_insights.py` has 29 tests over the ten insights, `tests/presentation/test_http.py` 14, `tests/infrastructure/test_model_factory.py` 16 including the local provider and enclave guard).
+
+Coverage diagram (code paths and user flows; existing tests cited where they exist, the rest are the plan's paths):
+
+```text
+CODE PATHS                                                      USER FLOWS
+[+] penny/presentation/http/middleware.py (Milestone 0)         [+] Sign in and first question (Milestone 0)
+  ├── verify_bearer()                                             ├── [GAP] [→E2E] hosted UI → callback → bearer → greeting streams
+  │   ├── [GAP] valid token → identity, tenant from tenants(sub)  ├── [GAP] [→E2E] no token → 401 on /agent/chat, /api/health
+  │   ├── [GAP] bad signature / expired / wrong aud / token_use   └── [GAP]        /healthz 200 without token (R5)
+  │   ├── [GAP] unknown kid → one refresh (rate-limited) → 401
+  │   └── [GAP] JWKS fetch fails, empty cache → 503 Retry-After  [+] Upload and confirm (1a, minimal view)
+  └── [★★ TESTED] request id + poid context — test_http.py         ├── [GAP] [→E2E] upload fixture → run → confirm mapping → verified
+[+] penny/infrastructure/llm/model_factory.py                      ├── [GAP]        double-click submit → one run, second lands in preview
+  ├── [★★★ TESTED] local provider + enclave — test_model_factory   ├── [GAP]        navigate away mid-run → run continues, list shows it
+  ├── [GAP] bedrock branch: vpce hostname accepted (A3)            ├── [GAP]        picker with same column twice → field error (RED-4)
+  ├── [GAP] bedrock: public hostname refused                       └── [GAP]        stale confirm → 409 "already confirmed"
+  └── [GAP] bedrock: guardrails config passed through
+[+] penny/application/insights/recurring.py (R1)                 [+] Ask for cuts (1a)
+  ├── recurring_groups()                                           ├── [GAP] [→EVAL] "what should I cut" → suggest_cuts → two sections
+  │   ├── [GAP] require_flag=True/min 2 reproduces subscriptions() ├── [GAP] [→EVAL] "why is dining up" → rising_categories
+  │   ├── [GAP] require_flag=False/min 3, exactly 3 charges        ├── [GAP]        tap a figure → explain view shows rows + version
+  │   └── [GAP] one merchant, all spend, gaps computed             └── [GAP]        Guardrails blocks → notice, no broken stream (REV-3)
+  └── [★★★ TESTED] subscriptions() — test_insights.py (R10 guard)
+[+] list_recurring_charges (item 6)                              [+] Sunday review (1a)
+  ├── [GAP] cadence 25-35 / 6-8 / 13-15 inclusive bounds           ├── [GAP]        first GET /snapshot after Sunday 00:00 tz → pinned component
+  ├── [GAP] 10 percent amount spread boundary (10.0 in, 10.1 out)  ├── [GAP]        fewer than 3 months → empty copy + question
+  └── [GAP] annualized cost per cadence                            ├── [GAP]        dismiss → gone; twice → 409; foreign id → 404
+[+] rising_categories (item 6)                                     ├── [GAP]        unchanged snapshot → regenerated, rotated question
+  ├── [GAP] 15 percent AND $50 both required (15%/$30 → no)        ├── [GAP]        abandoned generation → regenerates next trigger (REV-1)
+  ├── [GAP] fewer than 3 prior complete months → skipped           └── [GAP]        blocked phrasing → templated review (REV-3)
+  └── [GAP] partial current month excluded
+[+] suggest_cuts (item 6, R2, R3)                                [+] Error states the user sees
+  ├── [GAP] section one ranking by dollars/year, ties stable       ├── [GAP]        "interrupted" run after 15 min without heartbeat
+  ├── [GAP] section two: one charge only, times_avg ≥ 2.0 (R2)     ├── [GAP]        "File is over 20 MB." before parsing
+  ├── [GAP] one source raises → partial list, others intact        ├── [GAP]        503 with Retry-After when JWKS is down (REV-2)
+  └── [GAP] figures[] stamped by the registry hook (R3)            └── [GAP]        "Penny is busy" on Bedrock throttle after 2 retries
+[+] penny/application/tools/registry.py (R3 hook)
+  ├── [★★★ TESTED] validate/run/error — test_insights/test_chat_runtime
+  ├── [GAP] figures persisted and stamped after a successful run
+  └── [GAP] persist failure → figure without id + audit figure_persist_failed
+[+] reviews service (item 7, REV-1)
+  ├── [GAP] no committed snapshot → no row
+  ├── [GAP] concurrency: SELECT/INSERT paused, both orders → one row, one task
+  ├── [GAP] abandon at +16 min (frozen clock), not at +14
+  └── [GAP] week_start in tenant tz across a DST week
+[+] sessions (R4)
+  ├── [★★ TESTED] in-memory TTL — test_sessions.py
+  └── [GAP] Postgres round trip, TTL sweep, tenant scoping
+[+] runs (item 3)
+  └── [GAP] stale-run rule: no heartbeat 15 min → failed "interrupted" on poll
+
+LLM integration: [GAP] [→EVAL] three new tools + review phrasing change the tool surface → R11 eval on Bedrock vs the D13 baseline
+
+COVERAGE: 5/49 paths tested (10%)  |  Code paths: 5/33 (15%)  |  User flows: 0/16 (0%)
+QUALITY: ★★★:3 ★★:2 ★:0  |  GAPS: 44 (4 E2E, 3 eval)
+```
+Legend: ★★★ behavior + edge + error | ★★ happy path | ★ smoke check | [→E2E] integration test | [→EVAL] LLM eval
+
+The coverage number is low because the target is a plan: 44 of the gaps are proposed paths with no code yet. Every gap above is directly determined by an approved contract (items 1-8, RED-4, REV-1 to REV-4, R1 to R5, first doc R10/R11), so each is required proof, not a new verification choice.
+
+REGRESSION RULE: the existing behaviour at risk is the ten insights and prompt assembly (the Decimal sweep in C2, the per-request container in A6, the `recurring.py` extraction in R1) and the chat stream contract (`notice` added, `_jsonl` unchanged). The exact approved regression contract is the first doc's R10 (differential test over the ten insights and prompt bytes across the port change; golden outputs on fixtures). Carried forward without re-asking; the R1 extraction runs under it.
+
+Test value bar, per proposed test family (one card each; the Test Plan Artifact carries them):
+- Middleware: `Value: protects=401 means bad token and 503 means no keys; fails_when=the refresh limit or the empty-cache branch is removed; why_new=test_http.py covers context only; seam=TokenVerifier port (needed by production for key injection, not test-only)`.
+- Recurring helper: `Value: protects=subscriptions() output unchanged and the cuts tool's stricter rules; fails_when=the flag gate or min_charges default changes; why_new=test_insights.py asserts the old tool only; seam=none`.
+- Thresholds (recurring, rising, unusual): `Value: protects=item 6 boundaries exactly; fails_when=an inclusive bound becomes exclusive or $50 becomes $49; why_new=no existing test; seam=none`.
+- Registry hook: `Value: protects=every figure has an id or an audited failure; fails_when=the hook skips a tool or swallows RepositoryError; why_new=registry tests cover validation only; seam=FigureRepository port (production)`.
+- Reviews: `Value: protects=one review per week, abandoned ones recover; fails_when=insert-before-spawn reorders or the 15-minute check is dropped; why_new=new module; seam=injected clock (production seam via ports/clock.py, exists)`.
+- Sessions: `Value: protects=threads survive a restart, scoped by tenant; fails_when=tenant filter dropped or TTL sweep skipped; why_new=test_sessions covers memory only; seam=none`.
+- E2E (dev account only): `Value: protects=sign-in → upload → confirm → verified → cut → explain end to end; fails_when=any endpoint contract drifts; why_new=no browser test exists; seam=fixture user in the Cognito pool`.
+- Eval: `Value: protects=the model picks the cut tools and phrases only tool output; fails_when=tool descriptions regress or the review prompt adds facts; why_new=current eval has no cut cases; seam=none`.
+Tests made obsolete by this plan: none proposed; `test_sessions.py` memory tests stay (the memory store remains the fixtures configuration).
+
+Flakiness: time (inject the clock port), Cognito (E2E outside CI), Bedrock (eval only). Pyramid: unit-heavy as listed; ~12 integration; 1 E2E; 1 eval run.
+
+Section 3 dispositions: all gaps are required proof of approved behaviour; 0 new test-policy choices; R10 regression contract carried forward. Gaps identified: 44.
+
+## Section 4: Performance review (eng)
+
+- P1 [P2] (confidence: 8/10) `recurring.py:56` iterates `repository.all()` once per call; `suggest_cuts` calling three sources means three passes over the snapshot per turn plus the greeting's own calls. With the per-request snapshot (R2) and the LRU (R12) the frame is in memory, so three passes over ~5,000 rows cost milliseconds. No change.
+- P2 [P2] (confidence: 8/10) `anomalies.py:87-112` recomputes category statistics per call; the review and a chat turn on the same Sunday both call it. Acceptable at n=1; a per-snapshot memo inside the LRU entry is the 1b answer if it shows in traces. No change.
+- P3 [P2] (confidence: 9/10) explain_number reads rows by id list; the figures table stores row ids as an array column (Postgres) or JSON text (SQLite) with the `(tenant_id, id)` primary key; one query per explain. No change.
+- P4 [P2] (confidence: 8/10) JWKS: `PyJWKClient` caches the key set; with REV-2's one-refresh-per-minute limit a flood of bad tokens cannot hammer Cognito. No change.
+- The CEO review's Section 7 already covers indexes, memory bounds and connection pool. No new choice.
+
+Section 4 dispositions: 4 observations, 0 changes, 0 new choices. Issues found: 0 requiring action.
+
+## Outside voice (eng review)
+
+Preflight: `CODEX_MODE: broken_install` (spawn ENOENT on the Codex vendor binary; reinstall with `npm install -g @openai/codex`). Native fallback needs TaskOutput in this session's tools; it is absent, so the unavailable path applies. Outside voice unavailable; no clean-review credit; logged as `codex-plan-review` unavailable.
+
+## TODOS.md updates (eng review)
+
+No new TODO proposed: every finding resolved into accepted 1a or Milestone 0 scope (R1 to R5) or was already in TODOS.md.
+
+## Eng review body
+
+### NOT in scope
+- Per-snapshot memo of category statistics (Performance P2): deferred to 1b, only if traces show it.
+- Multi-AZ RDS and the job table: 1b, as revision 3 already states.
+- Median-based unusual-merchant statistic (R2 option B): rejected in favour of the existing outlier flag.
+- Everything the CEO review lists under its NOT in scope.
+
+### What already exists
+Reused as is: `ToolRegistry.run` (gains the R3 hook), `RecurringInsights` (gains the R1 helper), `TransactionSelector` and `penny/domain/periods.py` (rising categories), `AnomalyInsights` output (unusual merchants, R2), `GreetingFacts` pattern (review facts and fallback), `contract.py` validator (two new server components), `_jsonl` stream guard, `ports/clock.py` (injected clock for the time rules), `SessionRepository` port (Postgres implementation, R4), the local provider's enclave guard shape (Bedrock rule beside it), eval judge/analyst through the registry. Rebuilt: none. Shared-code decision: R1 (extract, rubric evidence in Code Quality C1).
+
+### Diagrams
+Architecture: eng Section 1 and CEO Section 1. Data flow and shadow paths: CEO Section 4. State machine: CEO Section 1 (reviews row), first doc R5 (runs). Error flow: CEO Section 2. Coverage: eng Section 3. Inline diagram to add: `registry.py` docstring (run → validate → handler → figures hook → persist or audit).
+
+### Failure modes (eng)
+```text
+  CODEPATH                    | FAILURE                              | TEST? | HANDLED?                         | USER SEES
+  middleware.verify_bearer    | JWKS down / rotation                 | Y     | REV-2                            | 503 / one refresh
+  /healthz                    | probe hits auth                      | Y     | R5 exempt                        | n/a (ALB)
+  bedrock branch              | public hostname configured           | Y     | A3 guard refuses at startup      | deploy fails loudly
+  chat_runtime                | Guardrails intervention              | Y     | REV-3 notice before _jsonl       | one notice line
+  BackgroundTask (run/review) | ContextVar missing after response    | Y     | A2 explicit args                 | none (works)
+  registry hook               | figure persist fails                 | Y     | R3: no id + audit                | figure without explain
+  recurring_groups            | helper changes old tool output       | Y     | R10 differential                 | none (caught in CI)
+  Decimal sweep               | Decimal + float TypeError            | Y     | C2 sweep under R10               | none (caught in CI)
+  sessions (Postgres)         | RDS unreachable                      | Y     | PennyError 503 handler           | "try again" component
+```
+0 critical gaps (every row has a test and handling, none silent).
+
+### Worktree parallelization strategy
+
+| Step | Modules touched | Depends on |
+|---|---|---|
+| E1 auth + /healthz | penny/presentation/http, penny/infrastructure/auth, settings | — |
+| E2 bedrock provider + notice | penny/infrastructure/llm, config, contract, web | — |
+| E3 Decimal sweep | penny/domain, penny/application/insights | — (blocks E4, E5) |
+| E4 recurring helper | penny/application/insights | E3 |
+| E5 rising + suggest_cuts | penny/application/insights, tools/catalog | E3, E4 |
+| E6 registry hook + explain | penny/application/tools, ports, routes | E5 |
+| E7 reviews service | penny/application/reviews, routes, penny_ledger | E5, E6, ledger (first doc T3-T6) |
+| E8 Postgres sessions | penny/infrastructure/persistence, container, penny_ledger migrations | ledger migrations |
+| E9 tests | tests/, eval/ | each lane as it lands |
+
+Parallel lanes: Lane A: E1 (auth). Lane B: E2 (model). Lane C: E3 → E4 → E5 → E6 → E7 (insights, shared `penny/application/insights`, sequential). Lane D: E8 with the ledger migrations (shared `penny_ledger/migrations` with the first doc's T3-T6, sequence after them). Execution order: launch A + B + C + ledger work (first doc T3-T6). Merge A and B. When ledger migrations land, launch D. C continues; E7 waits for E6 and the ledger. E9 tests ride each lane. Conflict flags: `routes.py` is touched by A (healthz), E6 (explain) and E7 (reviews): sequence A first, then C's routes edits; `container.py` is touched by B (credentials) and D (sessions): small, coordinate at merge.
+
+## Implementation Tasks
+Synthesized from this review's findings. Each task derives from a specific finding above. Run with Claude Code or Codex; checkbox as you ship.
+
+- [ ] **E1 (P1, human: ~1 day / CC: ~30 min)** — auth — Cognito JWT verification with `PyJWKClient`, `TokenVerifier` port, tenant from `tenants(sub)`, `/healthz` probe
+  - Surfaced by: Scope Challenge finding 5 (R5 D6 A); REV-2; Architecture A2
+  - Files: penny/presentation/http/middleware.py, penny/infrastructure/auth/cognito.py (new), penny/presentation/http/routes.py, penny/infrastructure/config/settings.py, tests/presentation/test_auth_middleware.py (new)
+  - Verify: five middleware tests (valid, invalid, unknown kid refresh once, JWKS down → 503, /healthz 200 without token); `/api/health` 401 without token
+- [ ] **E2 (P1, human: ~half a day / CC: ~20 min)** — model — `bedrock` provider: `ChatBedrockConverse(endpoint_url, guardrails)`, vpce hostname guard, credentials branch, Guardrails `notice` yielded in the runtime, `notice` in the contract and web renderer
+  - Surfaced by: Architecture A3, A4, A5; REV-3
+  - Files: penny/infrastructure/llm/model_factory.py, penny/infrastructure/config/models.py, penny/composition/container.py, penny/infrastructure/llm/chat_runtime.py, penny/application/components/contract.py, web/app.js, tests/infrastructure/test_model_factory.py
+  - Verify: guard accepts `vpce-…bedrock-runtime.<region>.vpce.amazonaws.com` and refuses `bedrock-runtime.<region>.amazonaws.com`; stubbed intervention yields `notice` and audits `guardrail_blocked`
+- [ ] **E3 (P1, human: ~1 day / CC: ~30 min)** — insights — Decimal sweep of the insight modules under R1/R10
+  - Surfaced by: Code Quality C2 (`models.py:39`, `trends.py:43,54-57`, `anomalies.py:62`, `selection.py:34-50`)
+  - Files: penny/domain/models.py, penny/application/insights/*.py, tests/application/test_insights.py (goldens)
+  - Verify: R10 differential test passes byte-for-byte on fixtures before and after
+- [ ] **E4 (P2, human: ~3 h / CC: ~10 min)** — insights — Extract `recurring_groups(transactions, *, require_flag, min_charges)`; `subscriptions()` and `list_recurring_charges` call it
+  - Surfaced by: R1 (D2 A)
+  - Files: penny/application/insights/recurring.py, penny/application/insights/recurring_charges.py (new), tests/application/test_recurring_groups.py (new)
+  - Verify: `subscriptions()` output unchanged under R10; three-charge and cadence-window boundary tests pass
+- [ ] **E5 (P2, human: ~1 day / CC: ~30 min)** — tools — `rising_categories` and `suggest_cuts` (four functions, one `annualize` helper, section two from `detect_anomalies` per R2), appended after the ten tools
+  - Surfaced by: R2 (D3 A); Architecture A1; Code Quality C3
+  - Files: penny/application/insights/rising_categories.py, suggest_cuts.py (new), service.py, penny/application/tools/catalog.py, tests
+  - Verify: threshold tests (15 percent and $50; partial month excluded; one charge only and 2.0 boundary); `ToolRegistry.names` ends with the three new names
+- [ ] **E6 (P2, human: ~3 h / CC: ~10 min)** — tools — `ToolRegistry` figures hook with a `FigureRepository` port; persist-failure path; `GET /figures/{id}`
+  - Surfaced by: R3 (D4 A); Code Quality C4
+  - Files: penny/application/tools/registry.py (plus docstring diagram), penny/application/ports/figures.py (new), penny/presentation/http/routes.py, tests
+  - Verify: hook test (stamp, persist, failure → no id + `figure_persist_failed`); explain returns rows whose Decimal sum equals the figure; foreign id → 404
+- [ ] **E7 (P2, human: ~2 days / CC: ~2 h)** — reviews — Reviews service: insert-before-spawn, explicit task args, abandon rule, templated fallback in the `GreetingFacts` shape, dismiss endpoint
+  - Surfaced by: item 7; REV-1; REV-3; Architecture A2; Code Quality C5
+  - Files: penny/application/reviews/service.py (new), penny/presentation/http/routes.py, penny_ledger (reviews repository), tests
+  - Verify: concurrency test (both orders → one row); frozen clock +16 min → regenerate + `review_abandoned`; blocked phrasing → templated review
+- [ ] **E8 (P1, human: ~1 day / CC: ~30 min)** — sessions — `PostgresSessionRepository` with tenant_id and TTL sweep in item 2's migration set
+  - Surfaced by: R4 (D5 A)
+  - Files: penny/infrastructure/persistence/postgres_sessions.py (new), penny/composition/container.py, penny_ledger/migrations (to be determined), tests/infrastructure/test_sessions.py
+  - Verify: round trip, TTL sweep, tenant scoping on the Postgres service container in CI
+- [ ] **E9 (P2, human: ~3 days / CC: ~3 h)** — tests — Test families from the coverage diagram, the dev-account E2E and the R11 eval cases
+  - Surfaced by: Test review (44 gaps)
+  - Files: tests/ (to be determined per family), eval/ (cases to be determined)
+  - Verify: coverage diagram paths each have a ★★ or ★★★ test; eval cases pass the judge against the D13 baseline
+
+_No new tasks from Performance review._
+
+### Suppressed findings
+None below confidence 5; every finding above quoted its motivating lines.
+
+### Unresolved decisions that may bite you later
+None in this review.
+
+### Completion summary (eng review)
+- Step 0: Scope Challenge — scope accepted as-is (5 findings, all resolved: R1-R5)
+- Architecture Review: 6 issues found (A1-A6, all implementation notes under existing approvals)
+- Code Quality Review: 5 issues found (C1 resolved by R1; C2-C5 notes)
+- Test Review: diagram produced, 44 gaps identified (all required proof of approved contracts)
+- Performance Review: 0 issues found (4 observations)
+- NOT in scope: written
+- What already exists: written
+- TODOS.md updates: 0 items proposed to user
+- Failure modes: 0 critical gaps flagged
+- Unresolved decisions: 0 in this review
+- Outside voice: codex, unavailable (broken install; native fallback unavailable, no TaskOutput)
+- Parallelization: 4 lanes, 3 parallel / 1 sequential chain
+- Lake Score: 5/5 = 10/10 choices / answered coverage choices (D2-D6)
+
 ## GSTACK REVIEW REPORT
 
 | Review | Trigger | Why | Runs | Status | Findings |
 |--------|---------|-----|------|--------|----------|
-| CEO Review | `/plan-ceo-review` | Scope & strategy | 1 (this run, develop) | ISSUES OPEN → see verdict; logged status: clean (0 unresolved, 0 critical gaps) | mode: SCOPE_REDUCTION, 0 critical gaps; 4 cuts offered, 1 accepted (RED-1), 4 review remedies approved (REV-1..4) |
-| Outside Review | codex via `/plan-ceo-review` (this run); codex via `/plan-eng-review` and design outside voices (main, 2026-09-30) | Independent 2nd opinion | 1 on develop; 2 on main | unavailable (broken install; native fallback unavailable, no TaskOutput) | no completed external review; finding count not applicable |
-| Eng Review | `/plan-eng-review` | Architecture & tests (required) | 0 on develop (1 on main, first doc, commit 9a737c5) | not run on revision 3 | main run: 15 issues, 0 critical gaps, 0 unresolved (first doc) |
-| Design Review | `/plan-design-review` | UI/UX gaps | 0 on develop (1 on main, first doc, commit 9a737c5) | not run on revision 3 | main run: score 2/10 → 9/10, 18 decisions (first doc) |
+| CEO Review | `/plan-ceo-review` | Scope & strategy | 1 (develop, 2026-09-30, commit e8c91c4) | CLEAR | mode: SCOPE_REDUCTION, 0 critical gaps; 4 cuts offered, 1 accepted |
+| Outside Review | codex via `/plan-ceo-review` and `/plan-eng-review` (develop); codex via eng review and design outside voices (main) | Independent 2nd opinion | 2 on develop; 2 on main | unavailable (broken install; native fallback unavailable) | no completed external review |
+| Eng Review | `/plan-eng-review` | Architecture & tests (required) | 1 (this run, develop) | ISSUES OPEN (11 issues mapped to tasks, 0 critical gaps, 0 unresolved) | 11 issues, 0 critical gaps |
+| Design Review | `/plan-design-review` | UI/UX gaps | 0 on develop (1 on main, first doc, 9a737c5) | not run on revision 3 | main run: score 2/10 → 9/10, 18 decisions |
 | DX Review | `/plan-devex-review` | Developer experience gaps | 0 | — | — |
 
-- **OUTSIDE COVERAGE:** codex, plan-review phase, unavailable (CLI installed but its binary cannot run: spawn ENOENT; reinstall with `npm install -g @openai/codex`); native fallback not dispatched because TaskOutput is not in this session's tools; no findings, no clean credit. Prior on main: codex-plan-review unavailable (eng review), design-outside-voices unavailable.
-- **VERDICT:** CEO CLEARED for revision 3 (0 unresolved, 0 critical gaps); eng review required (not yet run on revision 3; the main run reviewed the first doc at 9a737c5, 1 commit before this branch's revision).
+- **OUTSIDE COVERAGE:** codex, plan-review phase, unavailable in both develop runs today (CLI installed but its vendor binary cannot run: spawn ENOENT; reinstall with `npm install -g @openai/codex`); native fallback not dispatched because TaskOutput is absent from this session's tools; no findings, no clean credit.
+- **VERDICT:** CEO CLEARED; ENG reviewed with every finding resolved into tasks E1-E9 (status issues_open means mapped work, not open questions); design review of the minimal view, `weekly-review` and `notice` components is the next step the founder asked for.
 
 NO UNRESOLVED DECISIONS
