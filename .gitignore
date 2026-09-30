@@ -10,3 +10,4 @@ venv/
 data/audit_log.jsonl
 .ruff_cache/
 eval/out/
+data/penny_ledger.db

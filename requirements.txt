@@ -19,3 +19,7 @@ langchain-openai>=1.0
 langchain-aws>=1.0
 # Cognito JWT verification (PENNY_AUTH_MODE=cognito)
 PyJWT[crypto]>=2.9
+
+# Ledger (penny_ledger): SQLAlchemy Core + Alembic; SQLite for fixtures, Postgres in deployment
+SQLAlchemy>=2.0
+alembic>=1.13

@@ -105,6 +105,7 @@ class DependencyRule(unittest.TestCase):
             "collections",
             "statistics",
             "abc",
+            "uuid",
         }
         violations = []
         for module, path in _modules():
@@ -143,6 +144,89 @@ class DependencyRule(unittest.TestCase):
 
         self.assertEqual(
             violations, [], "application must stay framework-free:\n  " + "\n  ".join(violations)
+        )
+
+
+LEDGER_ROOT = PACKAGE_ROOT.parent / "penny_ledger"
+INGEST_ROOT = PACKAGE_ROOT.parent / "penny_ingest"
+
+
+def _package_modules(root: Path) -> list[tuple[str, Path]]:
+    if not root.is_dir():
+        return []
+    out = []
+    for path in sorted(root.rglob("*.py")):
+        relative = path.relative_to(root.parent).with_suffix("")
+        out.append((".".join(relative.parts), path))
+    return out
+
+
+class PackageRule(unittest.TestCase):
+    """The three-package rule from the design doc (Package ownership)."""
+
+    def test_ledger_depends_only_on_domain_ports_and_the_driver(self):
+        allowed_roots = {
+            "penny_ledger",
+            "sqlalchemy",
+            "alembic",
+            "__future__",
+            "collections",
+            "dataclasses",
+            "datetime",
+            "decimal",
+            "json",
+            "logging",
+            "os",
+            "typing",
+            "uuid",
+        }
+        violations = []
+        for module, path in _package_modules(LEDGER_ROOT):
+            for imported in _imports(path):
+                root = imported.split(".")[0]
+                if root == "penny":
+                    if not (
+                        imported.startswith("penny.domain")
+                        or imported.startswith("penny.application.ports")
+                        or imported == "penny.infrastructure.observability.telemetry"
+                    ):
+                        violations.append(f"{module} -> {imported}")
+                elif root not in allowed_roots:
+                    violations.append(f"{module} -> {imported}")
+        self.assertEqual(
+            violations, [], "penny_ledger reached outward:\n  " + "\n  ".join(violations)
+        )
+
+    def test_chat_never_imports_ingest(self):
+        violations = [
+            f"{module} -> {imported}"
+            for module, path in _modules()
+            for imported in _imports(path)
+            if imported.split(".")[0] == "penny_ingest"
+        ]
+        self.assertEqual(
+            violations, [], "penny must not import penny_ingest:\n  " + "\n  ".join(violations)
+        )
+
+    def test_ingest_never_imports_chat_layers(self):
+        violations = [
+            f"{module} -> {imported}"
+            for module, path in _package_modules(INGEST_ROOT)
+            for imported in _imports(path)
+            if imported.startswith(
+                (
+                    "penny.application",
+                    "penny.infrastructure",
+                    "penny.presentation",
+                    "penny.composition",
+                )
+            )
+            and not imported.startswith("penny.application.ports")
+        ]
+        self.assertEqual(
+            violations,
+            [],
+            "penny_ingest must not import chat layers:\n  " + "\n  ".join(violations),
         )
 
 
