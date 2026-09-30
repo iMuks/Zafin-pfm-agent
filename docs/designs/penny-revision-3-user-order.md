@@ -67,7 +67,7 @@ Approach B, by founder decision.
 
 ### Sequence
 
-- **Milestone 0, first (from the first doc, revision 2):** region; prod and dev accounts under an Organization with SSO; VPC, private subnets, interface endpoints for Bedrock, Secrets Manager, KMS and S3; Bedrock model access for Claude; Cognito user pool with one tenant and one user (the founder); a hostname on a domain the founder owns (for example `dev.penny.<founder-domain>`) with a Route 53 hosted zone and an ACM certificate; ingress: an internet-facing Application Load Balancer with TLS, no ALB authentication action, security group restricted to the founder's IP until 1b's WAF and CloudFront; one public Cognito app client with PKCE and no secret, callback `https://<hostname>/`; `web/` is served by the same Fargate service at the same origin as the API (as `app.py` mounts it today), so there is no CORS and the callback origin is the API origin; the `web/` hosted-UI sign-in and bearer token on every request, with the middleware validating the token against the Cognito JWKS and returning 401 on a missing or invalid token, are Milestone 0 work because they are what makes Milestone 0 testable; the D13 eval baseline runs as a one-off Fargate task with the same task role inside the VPC; RDS Postgres with KMS; two Object-Locked buckets with retention written down; `bedrock` provider in the registry with the enclave guard requiring the VPC endpoint hostname; Guardrails id in settings; Penny deployed as-is to Fargate in the dev account; the D13 eval baseline on Bedrock. Human ~1 week / CC+gstack ~1 day. The `local` provider baseline is not required; D13's baseline is on the production model.
+- **Milestone 0, first (from the first doc, revision 2):** region; prod and dev accounts under an Organization with SSO; VPC, private subnets, interface endpoints for Bedrock, Secrets Manager, KMS and S3; Bedrock model access for Claude; Cognito user pool with one tenant and one user (the founder); a hostname on a domain the founder owns (for example `dev.penny.<founder-domain>`) with a Route 53 hosted zone and an ACM certificate; ingress: an internet-facing Application Load Balancer with TLS, no ALB authentication action, security group restricted to the founder's IP until 1b's WAF and CloudFront; one public Cognito app client with PKCE and no secret, callback `https://<hostname>/`; `web/` is served by the same Fargate service at the same origin as the API (as `app.py` mounts it today), so there is no CORS and the callback origin is the API origin; the `web/` hosted-UI sign-in and bearer token on every request, with the middleware validating the token against the Cognito JWKS and returning 401 on a missing or invalid token, are Milestone 0 work because they are what makes Milestone 0 testable; JWKS contract (REV-2, D7, 2026-09-30): the key set is fetched at startup and cached, an unknown `kid` triggers one refresh (at most one per minute) and then 401, an empty cache with a failed fetch returns 503 with Retry-After and the health endpoint reports `jwks: unavailable`, and the Cognito JWKS URL is the one public egress allowed for the API task; the D13 eval baseline runs as a one-off Fargate task with the same task role inside the VPC; RDS Postgres with KMS; two Object-Locked buckets with retention written down; `bedrock` provider in the registry with the enclave guard requiring the VPC endpoint hostname; Guardrails id in settings; Penny deployed as-is to Fargate in the dev account; the D13 eval baseline on Bedrock; six CloudWatch alarms delivered by SNS email (REV-4, D9, 2026-09-30): ECS running tasks below one, ALB 5xx at least one in five minutes, `reviews_abandoned` at least one, `auth_503_jwks` at least one, RDS free storage under 20 percent or CPU over 80 percent for 15 minutes, Bedrock throttles at least five in five minutes. Human ~1 week plus half a day / CC+gstack ~1 day. The `local` provider baseline is not required; D13's baseline is on the production model.
 - **Milestone 1a, then:** items 1 to 8 below, in the dev account, single tenant.
 - **Milestone 1b:** second tenant and cross-tenant tests, WAF and CloudFront, consent table, the deferred connect states, prompt-retention review; then Milestone 2 as designed.
 
@@ -83,8 +83,8 @@ Approach B, by founder decision.
    - `rising_categories`: per category, compare the last complete calendar month in the snapshot with the mean of the three complete months before it (the partial current month is excluded); flagged when the last complete month exceeds that mean by 15 percent and by at least $50; reports the delta annualized (delta times twelve).
    - Unusual merchants: not a new tool; an internal filter inside `suggest_cuts` over the existing `detect_anomalies` output, keeping first-seen merchants whose amount exceeds twice the category median. New registered tools in 1a are therefore three: `list_recurring_charges`, `rising_categories`, `suggest_cuts`.
    - `suggest_cuts`: composes the three sources into one list in two sections. Section one, ranked by dollars per year: recurring charges by cadence-annualized amount, rising categories by annualized delta. Section two, labelled one-off and ranked by amount: unusual merchants by their single amount, never annualized. Each entry carries its source, its figure id, and the rows behind it.
-7. Weekly review: generated lazily on the first chat turn or `GET /snapshot` after Sunday 00:00 in the tenant's timezone (a `timezone` column on Tenant, provisioned with the founder's zone), from the latest committed snapshot, generated in a BackgroundTask on that request (the triggering request is not delayed; a row with generated_at null marks a generation in flight so it is never started twice; the component appears on the next `GET /snapshot`), persisted in a `reviews` table keyed by (tenant_id, week_start) with snapshot_version, generated_at, dismissed_at and body, and written to `audit_events` as review_generated (tenant_id, review id, snapshot_version). Preconditions: no review without a committed snapshot; when snapshot_version is unchanged since the previous review, a new review is still generated with the same cuts and a rotated question, so the weekly habit holds. Rendered by a new server-owned component `weekly-review` pinned at the top of the thread until dismissed (`POST /reviews/{id}/dismiss`, which sets dismissed_at and writes an audit event) or a newer review exists. Content: coverage line; the top three cuts, taken from section one of `suggest_cuts` and falling back to section two entries labelled one-off when section one has fewer than three; when fewer than three cuts exist, including zero, the component still renders the coverage line and the question, and the cuts block reads "No cuts to suggest yet. Penny needs about three months of data to spot a pattern."; and one question chosen from a fixed templated set driven by snapshot state (an unreviewed transfer pair, a run waiting on confirmation, a source whose coverage is more than 14 days old, a category that rose); the model may phrase the review over tool output only and may not add facts. On iOS the same record may become a Sunday notification; that is Open Question 2.
-8. Model: `bedrock` provider from the first upload, Guardrails on every prompt and response, reached only through the VPC interface endpoint. No `local` provider with real data; no public API.
+7. Weekly review: generated lazily on the first chat turn or `GET /snapshot` after Sunday 00:00 in the tenant's timezone (a `timezone` column on Tenant, provisioned with the founder's zone), from the latest committed snapshot, generated in a BackgroundTask on that request (the triggering request is not delayed; a row with generated_at null marks a generation in flight so it is never started twice; a row with generated_at null older than 15 minutes counts as abandoned, the next trigger regenerates it in place and writes `review_abandoned` to `audit_events` with the cause (REV-1, D6, 2026-09-30); the component appears on the next `GET /snapshot`), persisted in a `reviews` table keyed by (tenant_id, week_start) with snapshot_version, generated_at, dismissed_at and body, and written to `audit_events` as review_generated (tenant_id, review id, snapshot_version). Preconditions: no review without a committed snapshot; when snapshot_version is unchanged since the previous review, a new review is still generated with the same cuts and a rotated question, so the weekly habit holds. Rendered by a new server-owned component `weekly-review` pinned at the top of the thread until dismissed (`POST /reviews/{id}/dismiss`, which sets dismissed_at and writes an audit event) or a newer review exists. Content: coverage line; the top three cuts, taken from section one of `suggest_cuts` and falling back to section two entries labelled one-off when section one has fewer than three; when fewer than three cuts exist, including zero, the component still renders the coverage line and the question, and the cuts block reads "No cuts to suggest yet. Penny needs about three months of data to spot a pattern."; and one question chosen from a fixed templated set driven by snapshot state (an unreviewed transfer pair, a run waiting on confirmation, a source whose coverage is more than 14 days old, a category that rose); the model may phrase the review over tool output only and may not add facts. When Guardrails blocks the phrasing call, the review is rendered from the templated text without the model and `review_phrasing_blocked` is written to `audit_events` (REV-3, D8, 2026-09-30). On iOS the same record may become a Sunday notification; that is Open Question 2.
+8. Model: `bedrock` provider from the first upload, Guardrails on every prompt and response, reached only through the VPC interface endpoint. No `local` provider with real data; no public API. When Guardrails blocks a prompt or a response in chat, the stream ends with a server-owned `notice` component reading "Penny can't help with that one." and the turn is written to `audit_events` as `guardrail_blocked` with the Guardrails assessment id and never the content (REV-3, D8, 2026-09-30).
 
 ### Estimate
 
@@ -266,3 +266,825 @@ Stop: MAX_ITERATIONS
 
 > Add a review_generated audit event (tenant_id, review id, snapshot_version) to item 7 and to the event kinds in item 2, or state why generation is intentionally unaudited.
 <!-- gstack:office-hours:concerns:end -->
+
+## CEO review (plan-ceo-review, 2026-09-30)
+
+Review depth: implementation-ready (default). Working plan: this document. Base branch: main; this branch: develop.
+
+### 0A. Premise challenge
+Real problem: the founder wants to know where their own money goes and what to cut, with trustworthy numbers, without handing bank credentials to a third party. Target outcome: one expense cut per month the founder did not know about, from a ledger whose totals match the bank. Do-nothing cost: the founder keeps a category view in a bank app that never says what to cut, and the product has no user. The plan solves the pain directly for n=1; it solves user two's pain (bookkeeper agreement) only by shared infrastructure, which premise 6 already states.
+
+### 0B. Existing code leverage
+Sub-problem to reuse: chat, tools, streaming, component contract → penny/ as is; enrichment → scripts/enrich_transactions.py extracted per R9; ledger, mapping, reconciliation → the first doc's engineering ledger (R1 to R13) unchanged; consumer tool pack → three new tools over InsightService, using detect_anomalies, RecurringInsights and TrendInsights that already exist; weekly review → a server-owned component like the existing greeting path; sign-in → RequestContextMiddleware's poid seam becomes a verified read. No rebuild is proposed anywhere; the only new subsystems are the ledger and ingest packages already approved on 2026-09-30.
+
+### 0C. Dream state
+```
+  CURRENT STATE                          THIS PLAN                              12-MONTH IDEAL
+  One CSV enriched offline, one user,    Founder's own exports in a verified     Every user type on one core: individuals,
+  Anthropic API, laptop demo             ledger in their AWS account, Bedrock    small companies with books, bank channel;
+                                         behind a private link, three cut        iOS app; weekly review that finds a cut;
+                                         tools, weekly review, user one          two-source matching for companies; paid
+```
+The plan moves toward the ideal along the one axis that matters first, a real user on the real core, and defers the axes that need a second user.
+
+### Landscape
+[Layer 1] consumer apps link banks via aggregators and show categories. [Layer 2] post-Mint (2024) the market moved to privacy-first, no-bank-link, local-first tools (Actual Budget, Finny, Pocket Clear); Monarch lost users on price and data incidents. [Layer 3] Penny's upload-only, verified-ledger, own-account posture matches where the market moved, and explainable cuts over chat is absent from the envelope-budgeting incumbents. No eureka beyond the one logged in office hours (founder as user one).
+
+### Decision ledger
+
+| ID and owner | Contract and evidence | Current | Proposed | Status | Exact approval and scope |
+|---|---|---|---|---|---|
+| MODE (founder) | Review mode; ~20 planned files (estimate) | SCOPE REDUCTION | — | approved | D1 answer A, 2026-09-30; approves no plan change |
+| RED-1 (founder) | Connect screen scope in 1a; evidence: revision 3 item 5, first doc DT1/DT7/DT9/DT10/DT12 (~1 week) | 1a ships a minimal connect view (upload form, run states as plain text, report as a plain list) on the same endpoints; the polished screen (D4-D21) ships in 1b | — | deferred | D2 answer A, 2026-09-30: defer the polished screen to 1b; design decisions stand; scope = delivery order only |
+| RED-2 (founder) | Weekly review in 1a; evidence: item 7 (~2 days plus reviews table, component, dismiss endpoint, audit) | weekly review built in 1a as item 7 specifies (reviews table, weekly-review component, dismiss endpoint, review_generated audit) | — | approved | D3 answer B, 2026-09-30: keep in 1a; the review is the mechanism premise 6 measures |
+| RED-3 (founder) | Figure persistence and explain_number in 1a; evidence: item 6, moved from Milestone 2 (part of ~1 week tool pack) | kept in 1a as item 6 specifies: figure_id on every figure, Figure persistence, explain_number | — | approved | D4 answer B, 2026-09-30 (re-asked once in plain words): keep in 1a so any figure can be reopened later, including from the weekly review |
+| RED-4 (founder) | Missing-column picker shape of mapping confirm; evidence: item 3, design D16 third shape | kept in 1a: missing-column picker (design D16 third shape) rendered as a plain form on the minimal connect view | — | approved | D5 answer B, 2026-09-30: keep in 1a so any column file loads without a hand edit |
+| REV-1 (Section 1) | Weekly review generation failure; evidence: item 7 in-flight marker has no exit on crash or deploy | abandon rule: a reviews row with generated_at NULL older than 15 minutes counts as abandoned; the next trigger regenerates it in place (same row id, new task) and writes audit review_abandoned with the cause | — | approved | D6 answer A, 2026-09-30; scope: item 7 text, one test, one audit event type |
+| REV-2 (Section 2) | Milestone 0 sign-in middleware JWKS contract; evidence: R3-1/R3-5 name JWKS validation, no fetch or rotation policy; Milestone 0 egress allows interface endpoints only | JWKS fetched at startup and cached; unknown kid → one refresh (max one per minute) then 401; empty cache and failed fetch → 503 with Retry-After, health reports jwks unavailable; the Cognito JWKS URL is the one allowed public egress for the API task | — | approved | D7 answer A, 2026-09-30; scope: Milestone 0 text, four middleware tests, one egress rule |
+| REV-3 (Section 2) | Guardrails intervention contract; evidence: revision 2 turns Guardrails on for every prompt and response, no user-visible behaviour specified | chat: stream ends with a server-owned `notice` component "Penny can't help with that one.", audit guardrail_blocked with the assessment id only; weekly review: templated phrasing without the model, audit review_phrasing_blocked | — | approved | D8 answer A, 2026-09-30; scope: items 7 and 8 text, one component, two audit event types, two tests |
+| REV-4 (Section 8) | Alarms; evidence: none specified in Milestone 0 or 1a | six CloudWatch alarms to SNS email in Milestone 0: ECS running tasks < 1, ALB 5xx ≥ 1 in 5 min, reviews_abandoned ≥ 1, auth_503_jwks ≥ 1, RDS free storage < 20 percent or CPU > 80 percent for 15 min, Bedrock throttles ≥ 5 in 5 min | — | approved | D9 answer A, 2026-09-30; scope: Milestone 0 text and estimate (+~half a day human / ~15 min CC) |
+
+## Answered: RED-1 (D2 = A, defer; recorded above)
+
+### currentDecision archive (RED-1)
+Commitment comparison:
+
+```text
+Commitment | Source/approval or pending | Current | A (Defer) | B (Keep)
+Connect screen in 1a | revision 3 item 5, design D4-D12 | full polished screen | minimal view: upload form, run states as text, plain report list; same endpoints | full screen as designed
+Endpoints POST /uploads, GET /runs, GET /snapshot, report | R5/D7, D17, D20, D9 | in 1a | unchanged | unchanged
+Design decisions D4-D21 | approved 2026-09-30 | stand | still stand; delivery moves to 1b | delivered in 1a
+1a estimate | revision 3 Estimate | ~8 weeks human / ~7 days CC | about ~1 week human / ~1 day CC less | unchanged
+RED-2, RED-3, RED-4 | pending | pending | pending | pending
+```
+
+Question: D2 — RED-1: Defer the polished connect screen to 1b, shipping a minimal connect view in 1a?
+Project/branch/task: Zafin-pfm-agent on develop, plan-ceo-review scope reduction of revision 3.
+ELI10: The connect screen you designed today has an anchor block, sorted account rows, run sub-rows, three mapping-confirm shapes, a re-upload preview and a report with a delta line. It is about a week of the eight. User one is you. A minimal view with the same endpoints, an upload form, the run states as plain text, and the report as a plain list, lets you use Penny on your money a week earlier; the designed screen then ships in 1b for user two. Every design decision still stands; only delivery order moves.
+Stakes if we pick wrong: a week spent on a screen only you will see for a month, or a screen so bare that using it weekly is a chore and the metric suffers.
+Recommendation: A) Defer because the wedge metric is weekly use and one cut, which needs the ledger and the tools, not the polished screen, and every decision behind that screen is preserved for 1b.
+Note: options differ in kind, not coverage — no completeness score.
+Pros / cons:
+A) Defer the polished screen to 1b; minimal view in 1a (recommended)
+  ✅ About a week earlier to your own money with the same backend and endpoints
+  ✅ Nothing designed today is lost; it ships to user two in 1b as decided
+  ❌ Your first month is on a plain view, and the anchor-block hierarchy from the design review goes untested by a real user until 1b
+B) Keep the full screen in 1a
+  ✅ You use the product exactly as designed, and the design decisions get real use a month earlier
+  ✅ No second client pass in 1b
+  ❌ About a week of work before the first upload, on a screen with one viewer
+Net: a week earlier on a plain view, or the designed screen from day one.
+Header: RED-1 screen
+Options:
+A) Defer polished screen to 1b (recommended)
+Minimal connect view in 1a on the same endpoints: upload form, run states as plain text, report as a plain list. Effort S, risk low, reuse: all endpoints. ✅ About a week earlier to your money. ✅ Nothing designed is lost; ships in 1b. ❌ A plain view for your first month.
+B) Keep full screen in 1a
+The designed connect screen ships in 1a. Effort M (~1 week human / ~1 day CC), risk low, reuse: design decisions D4-D21. ✅ Product exactly as designed. ✅ No second client pass. ❌ A week before the first upload, one viewer.
+
+No new approach decision is needed before mode selection: approach B (Milestone 1a on the real ledger in the AWS dev account) was chosen in office hours (D12 answer, 2026-09-30) and stands.
+
+## Answered: RED-2 (D3 = B, keep; recorded above)
+
+### currentDecision archive (RED-2)
+Commitment comparison:
+
+```text
+Commitment | Source/approval or pending | Current | A (Defer) | B (Keep)
+Weekly review in 1a | revision 3 item 7 (~2 days; reviews table, weekly-review component, dismiss endpoint, review_generated audit) | in 1a | follow-on after the first month; the component, table and endpoint are not built in 1a | built in 1a as specified
+Weekly-use metric | Success Criteria (chat_turn per calendar week) | audit_events | unchanged, measured from chat_turn alone | unchanged
+The Sunday habit | premise 6 (weekly use for a month) | prompted by the pinned review | founder opens Penny unprompted | prompted by the pinned review
+RED-1 | approved D2 | deferred | unchanged | unchanged
+RED-3, RED-4 | pending | pending | pending | pending
+```
+
+Question: D3 — RED-2: Defer the weekly review to a follow-on after the first month?
+Project/branch/task: Zafin-pfm-agent on develop, plan-ceo-review scope reduction of revision 3.
+ELI10: The weekly review is a pinned Sunday message with the top three cuts and one question, generated from the ledger and stored with its own table, component, dismiss endpoint and audit event. About two days. It exists to make the Sunday habit happen. The counter-argument: it is also the one feature that reminds you to come back, and the success metric is four consecutive weeks of use. Defer it and the habit rests on you alone; keep it and 1a carries one more table and endpoint.
+Stakes if we pick wrong: a month of weekly use that fails for lack of a nudge, or two days on a nudge the founder would not have needed.
+Recommendation: B) Keep because premise 6 measures a habit, the review is the mechanism that creates it, and two days is cheap insurance on an eight-week bet.
+Note: options differ in kind, not coverage — no completeness score.
+Pros / cons:
+A) Defer to a follow-on after the first month
+  ✅ Two days less before the first upload, and one less table, component and endpoint in 1a
+  ✅ The metric is still measurable from chat_turn events
+  ❌ Nothing brings you back on Sunday; four consecutive weeks of use rests on willpower
+B) Keep the weekly review in 1a (recommended)
+  ✅ The Sunday nudge is what turns a tool into a habit, which is exactly what premise 6 measures
+  ✅ It is the first surface where suggested cuts meet you without you asking
+  ❌ Two days and one more persisted record with an audit event before user one starts
+Net: build the habit's trigger or rely on willpower.
+Header: RED-2 review
+Options:
+A) Defer weekly review
+Follow-on after the first month; 1a has no reviews table, component or dismiss endpoint. Effort S (zero implementation work in 1a), risk medium for the habit metric, reuse: none. ✅ Two days earlier. ✅ Metric still measurable. ❌ No Sunday nudge; habit on willpower.
+B) Keep weekly review in 1a (recommended)
+Built as item 7 specifies. Effort S (~2 days human / ~2 hours CC), risk low, reuse: greeting path pattern, suggest_cuts. ✅ Creates the habit premise 6 measures. ✅ Cuts reach you unasked. ❌ One more table, endpoint and audit event in 1a.
+
+## Answered: RED-3 (D4 = B, keep; recorded above)
+
+### currentDecision archive (RED-3)
+Commitment comparison:
+
+```text
+Commitment | Source/approval or pending | Current | A (Defer) | B (Keep)
+Figure persistence + explain_number in 1a | revision 3 item 6 (moved from Milestone 2; design D19; part of the ~1 week tool pack) | in 1a | returns to Milestone 2; 1a tools list the contributing rows inline in the tool result, no figure_id, no Figure table, no explain_number | every figure has a figure_id, is persisted, and explain_number opens it (as item 6 specifies)
+Explain rule | first doc D12 (explain on structured components only) | unchanged | inactive until Milestone 2 | unchanged
+Suggested cuts explainable | premise 6 / Success Criteria (founder trusts a figure without re-checking) | via explain_number | via inline rows in the same reply | via explain_number
+RED-1 | deferred | deferred | unchanged | unchanged
+RED-2 | approved | in 1a | unchanged | unchanged
+RED-4 | pending | pending | pending | pending
+```
+
+Question: D4 — RED-3: Return figure persistence and explain_number to Milestone 2?
+Project/branch/task: Zafin-pfm-agent on develop, plan-ceo-review scope reduction of revision 3.
+ELI10: Every number Penny shows can get an id and be stored, so later you can tap it and ask "explain this" and Penny opens the exact rows and snapshot version behind it. Revision 3 pulled that forward from Milestone 2 into 1a so every suggested cut is explainable. The cheaper version: the tool that suggests a cut lists the rows it used right in its reply, with no stored figure and no explain step. About two to three days of difference inside the tool-pack week.
+Stakes if we pick wrong: a founder who cannot check a wrong figure stops trusting the cuts, or days spent on a figure store nobody taps in month one.
+Recommendation: A) Defer because inline rows give user one the same check with zero extra tables, and explain_number earns its place when a second user cannot read a tool reply the way the builder can.
+Note: options differ in kind, not coverage — no completeness score.
+Pros / cons:
+A) Defer to Milestone 2, inline rows in 1a (recommended)
+  ✅ Two to three days less in 1a and no Figure table, figure_id or explain endpoint to build and audit
+  ✅ The founder still sees the rows behind every cut, in the same reply, which is the trust check that matters for n=1
+  ❌ A figure cannot be revisited later; the check works only while the reply is on screen
+B) Keep figure persistence and explain_number in 1a
+  ✅ Any figure can be opened after the fact, including from the weekly review, with its snapshot version
+  ✅ 1b inherits the explain path for user two without rework to the tool pack
+  ❌ Two to three days, one more table and an audit event before the first cut is suggested
+Net: prove the cuts are checkable in the reply, or build the store that makes them checkable forever.
+Header: RED-3 review
+Options:
+A) Defer to Milestone 2, inline rows in 1a (recommended)
+Tools list the rows they used in the result; no figure_id, Figure table or explain_number until Milestone 2. Effort S (saves ~2-3 days human / ~3 hours CC), risk low, reuse: existing tool result shape. ✅ Fewer tables. ✅ Rows still visible. ❌ Figures cannot be revisited later.
+B) Keep in 1a as item 6 specifies
+Every figure persisted with a figure_id; explain_number in 1a (human: ~2-3 days / CC: ~3 hours). Risk low, reuse: snapshot version, audit ids. ✅ Open any figure later. ✅ 1b inherits it. ❌ One more table and audit event before the first cut.
+
+## Answered: RED-4 (D5 = B, keep; recorded above)
+
+### currentDecision archive (RED-4)
+Commitment comparison:
+
+```text
+Commitment | Source/approval or pending | Current | A (Defer) | B (Keep)
+Missing-column picker (mapping confirm, third shape) | revision 3 item 3; design D16 third shape (~1-2 days) | in 1a | deferred to 1b; in 1a a file with no detectable date or amount column fails the run with cause "unusable file" and the plain-text run list shows it | built in 1a: Penny asks you to pick which column is the date and which is the amount
+Mapping confirm shapes 1 and 2 (unsure mapping, ambiguous format) | design D16 | in 1a | unchanged | unchanged
+Minimal connect view in 1a | RED-1 (approved) | plain text run states | shows the failed run and its cause | shows the picker as a plain form
+RED-2, RED-3 | approved | in 1a | unchanged | unchanged
+```
+
+Question: D5 — RED-4: Defer the missing-column picker to 1b?
+Project/branch/task: Zafin-pfm-agent on develop, plan-ceo-review scope reduction of revision 3.
+ELI10: When you upload a bank export, Penny guesses which column is the date and which is the amount. When it is unsure, it asks you to confirm (that stays). The third case is rarer: Penny cannot find a date or amount column at all. The plan says Penny then shows a picker so you choose the columns yourself. The cheaper version for 1a: the upload just fails with the message "unusable file", and you fix the file and re-upload. One to two days of difference. Your own bank exports are the only files in 1a, so you will know what is in them.
+Stakes if we pick wrong: a real export of yours fails and you have no way to load it without editing the file, or one to two days on a picker no 1a file ever needs.
+Recommendation: A) Defer because in 1a every file is your own, "unusable file" plus a re-upload is enough, and the picker matters when a stranger's odd export shows up in 1b.
+Note: options differ in kind, not coverage — no completeness score.
+Pros / cons:
+A) Defer picker to 1b; "unusable file" in 1a (recommended)
+  ✅ One to two days less in 1a and one fewer form on the minimal connect view
+  ✅ Shapes 1 and 2 of mapping confirm still cover the unsure and ambiguous cases for your files
+  ❌ An export with an odd layout cannot be loaded in 1a without editing the file by hand
+B) Keep the picker in 1a
+  ✅ Any file with columns can be loaded, even one Penny cannot read on its own
+  ✅ The picker is built once and 1b uses it unchanged for user two
+  ❌ One to two days on a case your own exports may never trigger in month one
+Net: fail loudly and re-upload in 1a, or build the column picker now.
+Header: RED-4 review
+Options:
+A) Defer picker to 1b; "unusable file" in 1a (recommended)
+Run fails with cause "unusable file"; picker ships in 1b. Effort S (saves ~1-2 days human / ~1 hour CC), risk low, reuse: existing run-failure path. ✅ Simpler. ✅ Shapes 1-2 still cover your files. ❌ Odd layouts need a hand edit.
+B) Keep the picker in 1a
+Built as design D16 third shape (human: ~1-2 days / CC: ~1 hour). Risk low, reuse: mapping confirm shapes 1-2. ✅ Any column file loads. ✅ 1b inherits it. ❌ Time on a case your files may never hit.
+
+## Current scope (after RED-1 to RED-4, 2026-09-30)
+
+Mode: SCOPE REDUCTION (D1 = A, founder; rule recommended it for a plan with ~20 planned files and one user). Governing rows: MODE approved (D1 A); RED-1 deferred (D2 A: polished connect screen to 1b, minimal connect view in 1a, TODOS.md entry added); RED-2 approved (D3 B: weekly review stays in 1a); RED-3 approved (D4 B: figure persistence and explain_number stay in 1a); RED-4 approved (D5 B: missing-column picker stays in 1a as a plain form). Accepted work: Milestone 0 as written, Milestone 1a items 1 to 8 with item 5 replaced by the minimal connect view. Deferred: polished screen (1b). Rejected: nothing new (the 48-hour prototype and the digest-only approach were rejected in office hours). Pending: the review findings below. The 1a estimate after RED-1: roughly 7 weeks human / 6 days CC+gstack.
+
+Apply note for RED-1 (no new choice): the minimal connect view must let a run leave "needs confirmation", so it carries the same confirm interactions as plain forms: the three mapping-confirm shapes (design D16, including the picker kept by RED-4), the account proposal sentence (D15) and the re-upload preview with Replace or Keep both (D21). "Run states as plain text" describes the list; the forms are the endpoints' inputs, not design work. Same endpoints as the polished screen.
+
+## Section 1: Architecture Review
+
+Everything below the tool pack was reviewed in the first doc's engineering review (R1 to R13) and stands. This section reviews what revision 3 adds: the Milestone 0 sign-in middleware, the three consumer tools and `suggest_cuts`, figure persistence in 1a, the weekly review, and the stale-run rule.
+
+```text
+                      ┌──────────── founder's AWS dev account ─────────────┐
+  browser (web/) ──TLS──▶ ALB (SG: founder IP) ──▶ ECS Fargate: penny API   │
+    │ Cognito hosted UI        │                      ├─ JWKS middleware      │
+    └── PKCE ──▶ Cognito ◀─────┘ (JWKS fetch, cached) ├─ POST /uploads ─▶ BackgroundTask: ingest ─▶ reconcile ─▶ commit(sync_version)
+                                                      ├─ GET /runs/{id}      │                 └─ stale-run rule (15 min, "interrupted")
+                                                      ├─ GET /snapshot ──▶ weekly-review trigger ─▶ BackgroundTask: suggest_cuts ─▶ reviews row
+                                                      ├─ POST /chat ─▶ LangGraph agent ─▶ tools (10 + 3) ─▶ Figure store (figure_id)
+                                                      │                  └─▶ Bedrock (VPC endpoint, Guardrails)
+                                                      ├─ POST /reviews/{id}/dismiss
+                                                      └─ GET /figures/{id} (explain_number)
+                        RDS Postgres (KMS): postings, accounts, runs, figures, reviews, audit_events, sessions
+                        S3 Object Lock: uploads, prompt log        Secrets Manager / KMS via interface endpoints
+```
+
+Dependency graph, new pieces only: `weekly-review` → `suggest_cuts` → (`list_recurring_charges`, `rising_categories`, `detect_anomalies` filter) → snapshot(tenant, version) → `penny_ledger`. `suggest_cuts` → Figure store. `explain_number` → Figure store → postings by row id. Middleware → Cognito JWKS (outbound HTTPS to the Cognito endpoint; the only public egress the API needs besides the ALB, and it must be allowed on the egress rules that Milestone 0 restricts). No new dependency crosses the package rule of the first doc (penny → penny_ledger read port only).
+
+Data flow, weekly review (new stateful object):
+```text
+  happy:  GET /snapshot after Sunday 00:00 (tenant tz) ─▶ no reviews row for week_start ─▶ INSERT row (generated_at NULL) ─▶ 202-style: request returns ─▶ BackgroundTask: suggest_cuts over latest committed snapshot ─▶ model phrases over tool output ─▶ UPDATE body, generated_at ─▶ audit review_generated ─▶ next GET /snapshot renders weekly-review
+  nil:    no committed snapshot ─▶ no row, no task, nothing rendered (item 7 precondition)
+  empty:  snapshot committed but suggest_cuts returns zero entries ─▶ row generated with coverage line + "No cuts to suggest yet…" + question (item 7)
+  error:  suggest_cuts or model call raises ─▶ ??? row stays generated_at NULL ─▶ never retried, never rendered  ← GAP (REV-1 below)
+```
+State machine, reviews row: `absent → in_flight(generated_at NULL) → generated → dismissed`; `generated → superseded` when a newer week_start row exists. Invalid transitions: `in_flight → dismissed` (no id is shown yet, so the endpoint cannot be called; still enforce 409), `dismissed → generated` (dismissed_at is never cleared). Missing transition today: `in_flight → abandoned`. Upload runs already have that transition (stale-run rule, item 3); the review needs the same.
+
+Data flow, sign-in (new): `browser → Cognito hosted UI (PKCE) → tokens → Bearer on every request → middleware: fetch JWKS (cached) → verify signature, iss, aud (app client id), exp, token_use → tenant_id from the server-side user→tenant mapping, never from a client-supplied claim → RequestContext`. Nil/empty: no header or empty bearer → 401 (Success Criteria). Error: JWKS endpoint unreachable at cold start or an unknown `kid` after Cognito key rotation → unspecified ← GAP (REV-2). Today's `penny/presentation/http/middleware.py` reads the JWT payload without verifying it; Milestone 0 replaces `poid_from_headers` with verification, and the `ext-user-profile-compressed` path is removed (no gateway in this deployment).
+
+Coupling: the review couples the greeting path to the tool pack through `suggest_cuts`, justified because the review is defined as the top of that list. `suggest_cuts` couples three insights into one ranking; keep it as one application-layer composer over three tool functions so each stays testable alone (Section 5).
+
+Scale: n=1 in 1a. At 10x tenants the in-process BackgroundTask is the first thing to break (an ingest and a review compete for the one task's CPU; a deploy kills both); 1b's job table is the planned answer. At 100x, JWKS caching and the per-request container LRU (R12) hold; RDS connection count becomes the limit before anything in this revision does.
+
+Single points of failure: one Fargate task (deploy or crash kills in-flight uploads and reviews; the stale-run rule recovers uploads, REV-1 must recover reviews); one RDS instance (Multi-AZ is a 1b decision, backups from Milestone 0); Cognito and Bedrock are regional managed services.
+
+Security architecture, new surfaces: `POST /reviews/{id}/dismiss` (caller: the signed-in tenant; gets 204; changes dismissed_at of its own row only, 404 for another tenant's id); `GET /figures/{id}` explain (own tenant only, 404 otherwise); the three tools are model-invoked and read-only. Section 3 has the threat table.
+
+Production failures: Bedrock throttles or Guardrails blocks a prompt or response (Section 2, REV-3); Cognito key rotation (REV-2); RDS failover mid-commit (the atomic commit with sync_version, R2, makes a partial commit impossible; the run is marked failed with cause on the next poll by the stale-run rule if the task died); S3 Object Lock bucket policy rejects the upload copy (the run fails with cause "our side", the file is not imported).
+
+Rollback: redeploy the previous ECS task definition (minutes). Migrations in 1a are additive (new tables `figures`, `reviews`; new column `tenant.timezone`), so the previous image runs against the new schema.
+
+**Findings:** REV-1 (WARNING) in-flight review never abandoned; REV-2 (WARNING) JWKS unavailability and key rotation unspecified; REV-3 (WARNING, Section 2) Guardrails intervention has no user-visible contract. OK: package rule, atomic commit, stale-run rule, tenant scoping, rollback.
+
+**Decision gate:** REV-1 needs a new choice (0D, below). REV-2 and REV-3 are asked in Section 2 where they belong. Applied without a choice: the RED-1 Apply note above.
+
+## Answered: REV-1 (D6 = A, apply; recorded in the ledger and item 7)
+
+### currentDecision archive (REV-1)
+Commitment comparison:
+
+```text
+Commitment | Source/approval or pending | Current | A (Apply) | B (Keep)
+Weekly review "never started twice" | item 7 (approved, R3-10) | row with generated_at NULL marks in flight | unchanged; the NULL row still blocks a second start while fresh | unchanged
+Weekly review on failure | not specified | row stays NULL forever; no review that week, no retry | after 15 minutes with generated_at NULL the row counts as abandoned: the next trigger regenerates in place (same row id, new task) and writes audit review_abandoned with the cause | unchanged (silent loss)
+Stale-run rule for uploads | item 3 (approved, R3-11) | 15 minutes, cause "interrupted" | same threshold and shape reused | unchanged
+RED-2 | approved | weekly review in 1a | unchanged | unchanged
+```
+
+Question: D6 — REV-1: Give the weekly review the same abandon rule as uploads?
+Project/branch/task: Zafin-pfm-agent on develop, plan-ceo-review Section 1 of revision 3.
+ELI10: When Sunday's review starts, Penny writes a placeholder row so it never starts twice. If the generation then crashes, or a deploy kills the task halfway, that placeholder sits there forever: no review that week, and nothing tries again. Uploads already have a rule for this (no heartbeat for 15 minutes means "interrupted"). The fix is to give reviews the same rule: a placeholder older than 15 minutes is treated as abandoned and the next Sunday trigger regenerates it, with an audit event saying so.
+Stakes if we pick wrong: the one feature that builds the weekly habit silently disappears on the first bad Sunday, or you carry one more rule you may never need.
+Recommendation: A) Apply because a silent loss of the habit trigger is the failure premise 6 cannot see, and the rule already exists for runs.
+Completeness: A=10/10, B=5/10
+Pros / cons:
+A) Apply: 15-minute abandon rule, regenerate on next trigger, audit review_abandoned (recommended)
+  ✅ A crashed or killed generation is visible in audit_events and recovers on the next request, nobody has to notice
+  ✅ Same threshold and shape as the stale-run rule, so one mental model and one test pattern for both
+  ❌ One more branch in the trigger and one more audit event type to name and test (human: ~2 hours / CC: ~10 minutes)
+B) Keep as written
+  ✅ Nothing to add to item 7 before 1a starts
+  ✅ For n=1 the founder can notice a missing review and ask in chat
+  ❌ A NULL placeholder blocks that week forever; the loss is silent and the metric quietly fails
+Net: two hours now to make a silent failure loud, or accept that one bad Sunday costs the week.
+Header: REV-1 review
+Options:
+A) Apply the abandon rule (recommended)
+Placeholder older than 15 minutes counts as abandoned; the next trigger regenerates it in place and writes audit review_abandoned with the cause. Effort S (human ~2h / CC ~10min), risk low, reuse: stale-run rule. ✅ Loud, self-healing. ✅ One pattern for runs and reviews. ❌ One more branch and event.
+B) Keep as written
+No abandon rule; a failed generation leaves the NULL row and no review that week. Effort none, risk medium for premise 6, reuse: n/a. ✅ Nothing to add. ✅ Founder can ask in chat. ❌ Silent weekly loss.
+
+## Section 2: Error & Rescue Map
+
+Implementation-ready depth. Codepaths already mapped in the first doc's eng review (ingest, reconciliation, commit, snapshot cache) are not repeated; rows below are the ones revision 3 adds.
+
+```text
+  METHOD/CODEPATH                          | WHAT CAN GO WRONG                                   | EXCEPTION CLASS
+  -----------------------------------------|-----------------------------------------------------|---------------------------
+  middleware.verify_bearer                 | no/empty Authorization header                       | MissingTokenError
+                                           | signature invalid, exp passed, wrong iss/aud/token_use | InvalidTokenError
+                                           | kid not in cached JWKS (Cognito key rotation)       | UnknownKeyError
+                                           | JWKS fetch fails (cold start, egress rule, timeout) | JwksUnavailableError
+  bedrock_provider.invoke (chat, review)   | throttled (429), timeout, endpoint unreachable       | ModelUnavailableError
+                                           | Guardrails blocks the prompt or the response        | GuardrailInterventionError
+                                           | tool call JSON malformed / unknown tool / bad args   | ToolCallValidator (exists)
+                                           | empty completion                                    | EmptyCompletionError
+  uploads.run (BackgroundTask)             | task killed (deploy, OOM) before terminal state     | none raised → stale-run rule marks "interrupted" on next poll (item 3)
+                                           | file over 20 MB, not CSV/XLSX, undecodable          | FileRejectedError (design D5 copy)
+  list_recurring_charges / rising_categories | fewer than three complete months in the snapshot   | none: returns empty with reason (item 7 empty copy)
+  suggest_cuts                             | one source raises                                   | InsightError from that source
+  figures.persist                          | figure row insert fails (RDS)                       | RepositoryError
+  explain_number(figure_id)                | unknown id, other tenant's id                       | FigureNotFoundError
+  reviews.trigger                          | two concurrent triggers                              | IntegrityError on (tenant_id, week_start)
+                                           | generation crashes / task killed                     | none raised → REV-1 abandon rule
+  reviews.dismiss(id)                      | unknown id, other tenant, already dismissed, in flight | ReviewNotFoundError / ReviewStateError
+  timezone lookup                          | tenant.timezone not a valid IANA zone               | ZoneInfoNotFoundError
+
+  EXCEPTION CLASS              | RESCUED? | RESCUE ACTION                                            | USER SEES
+  -----------------------------|----------|----------------------------------------------------------|----------------------------------------------
+  MissingTokenError            | Y        | 401, no body detail                                      | web/ redirects to the hosted UI sign-in
+  InvalidTokenError            | Y        | 401; log kid, iss mismatch reason, request id (no token) | sign-in again
+  UnknownKeyError              | GAP      | — (REV-2)                                                | 401 loop after a key rotation ← BAD
+  JwksUnavailableError         | GAP      | — (REV-2)                                                | 401 or 500 at cold start ← BAD
+  ModelUnavailableError        | Y        | retry 2x with backoff on 429/timeout, then raise         | chat: "Penny is busy, try again in a minute" component; review: REV-1 abandon path
+  GuardrailInterventionError   | GAP      | — (REV-3)                                                | unspecified: stream breaks or the model's refusal text ← BAD
+  ToolCallValidator failure    | Y        | existing: reject the call, ask the model once more       | unchanged from today
+  EmptyCompletionError         | Y        | treat as ModelUnavailableError, one retry                | same as busy
+  FileRejectedError            | Y        | run failed with cause; no import                          | D5 copy ("File is over 20 MB." + Split it, etc.)
+  InsightError (in suggest_cuts)| Y       | drop that source, mark the list partial, log             | list with a "one source unavailable" line
+  RepositoryError (figures)    | Y        | the tool result is still returned without figure_id; log | figure without "explain"; audit figure_persist_failed
+  FigureNotFoundError          | Y        | 404                                                      | "That figure isn't available" in the explain view
+  IntegrityError (reviews)     | Y        | the loser of the race skips generation (the row exists)  | nothing; one review
+  ReviewNotFoundError          | Y        | 404                                                      | nothing (component already gone)
+  ReviewStateError             | Y        | 409                                                      | nothing
+  ZoneInfoNotFoundError        | Y        | provisioning validates the zone; runtime falls back to UTC and logs | review at UTC Sunday
+```
+
+Rules check: no catch-all; every rescue logs tenant_id, request id, run or review id and the attempted operation (never a token or a row descriptor). LLM failure modes handled as distinct: malformed tool JSON (validator), empty completion, refusal by Guardrails (REV-3), hallucinated figure ids (the model may only cite figure ids present in tool output; the explain endpoint 404s anything else).
+
+**Findings:** REV-2 (CRITICAL GAP): the sign-in middleware has no contract for JWKS unavailability or key rotation, which means Milestone 0's own acceptance test can fail for a reason nobody planned. REV-3 (WARNING): Guardrails intervention has no user-visible contract in chat or in the review. OK: the rest, with rescue actions as tabled (these follow the approved contracts and need no new choice, except the two named).
+
+**Decision gate:** REV-2 and REV-3 each need a new choice (0D). Applied without a choice: the rescue table rows that restate approved behavior.
+
+## Answered: REV-2 (D7 = A, apply; recorded in the ledger and Milestone 0)
+
+### currentDecision archive (REV-2)
+Commitment comparison:
+
+```text
+Commitment | Source/approval or pending | Current | A (Apply) | B (Keep)
+Milestone 0 middleware | R3-1, R3-5 (approved): JWKS validation, 401 on missing/invalid | validates against "the Cognito JWKS"; fetch policy unspecified | JWKS fetched at startup and cached; on an unknown kid refresh once (rate-limited to one refresh per minute) then 401; if the cache is empty and the fetch fails, respond 503 with a Retry-After, never 401, and the health endpoint reports jwks: unavailable | unchanged (fetch policy left to the implementer)
+Milestone 0 acceptance | Success Criteria (unauthenticated → 401; founder signs in) | as written | unchanged, plus: a rotated key does not lock the founder out | unchanged
+Egress rules (Milestone 0) | interface endpoints only | no public egress listed | the Cognito JWKS URL is the one allowed public egress from the API task | unspecified (the fetch silently fails behind the egress rule)
+```
+
+Question: D7 — REV-2: Fix the JWKS fetch and key-rotation contract for the Milestone 0 middleware?
+Project/branch/task: Zafin-pfm-agent on develop, plan-ceo-review Section 2 of revision 3.
+ELI10: To check your sign-in token, Penny needs Cognito's public keys, which it downloads from a Cognito URL. The plan says "validate against the JWKS" and stops. Two things go wrong in practice: the download fails when the service starts (for example because the private network blocks that URL, which Milestone 0 is designed to do), and Cognito rotates its keys, so a valid token arrives signed with a key Penny has not seen. Without a rule, both look like "invalid token" and you are locked out of your own app with a 401 that lies. The fix is a small contract: cache the keys at startup, refresh once when an unknown key shows up, answer 503 instead of 401 when the keys are simply not there, and allow that one URL through the egress rules.
+Stakes if we pick wrong: Milestone 0's acceptance test fails or passes by luck, and the first key rotation locks you out with a misleading error.
+Recommendation: A) Apply because the contract is four lines, it is what makes the 401 in the acceptance test mean what it says, and the egress line is a Milestone 0 task that would otherwise be discovered by a failed deploy.
+Completeness: A=10/10, B=4/10
+Pros / cons:
+A) Apply the JWKS contract and the egress line (recommended)
+  ✅ A 401 always means a bad token; a missing key set says 503 and shows in the health endpoint
+  ✅ Key rotation is handled once, with a rate limit so a bad token cannot hammer Cognito
+  ❌ Four more middleware tests and one egress rule to write down in Milestone 0 (human: ~half a day / CC: ~20 minutes)
+B) Keep as written
+  ✅ Nothing to add to Milestone 0 text
+  ✅ The implementer may do the right thing anyway
+  ❌ The first cold start behind the egress rule, or the first rotation, locks the founder out with a 401 that lies
+Net: half a day for a sign-in that fails honestly, or trust that the implementer guesses the same rules.
+Header: REV-2 review
+Options:
+A) Apply the JWKS contract (recommended)
+Cache at startup; refresh once per unknown kid (max one refresh a minute) then 401; empty cache plus failed fetch → 503 with Retry-After and health reports jwks unavailable; the JWKS URL is the one public egress allowed for the API task. Effort S (human ~half a day / CC ~20 min), risk low, reuse: existing health endpoint. ✅ Honest 401. ✅ Rotation handled. ❌ Four tests and one egress rule.
+B) Keep as written
+Fetch policy left to the implementer. No effort, risk high for Milestone 0 acceptance. ✅ Nothing to add. ✅ Implementer may guess right. ❌ Lock-out with a lying 401 on cold start or rotation.
+
+## Answered: REV-3 (D8 = A, apply; recorded in the ledger, items 7 and 8)
+
+### currentDecision archive (REV-3)
+Commitment comparison:
+
+```text
+Commitment | Source/approval or pending | Current | A (Apply) | B (Keep)
+Guardrails on every prompt and response | revision 2 (approved) | on; intervention behaviour unspecified | chat turn: the stream ends with a fixed server-owned `notice` component "Penny can't help with that one." (no model text), the turn is audited as guardrail_blocked with the Guardrails assessment id, never the content; weekly review phrasing: fall back to the templated text without the model, audited as review_phrasing_blocked | unspecified (whatever the SDK raises reaches the stream)
+Component contract | first doc (server-owned components, structured only) | unchanged | one more server-owned component, no new design decision (plain text notice) | unchanged
+Prompt log (S3 Object Lock) | revision 2 | prompts and responses | unchanged; a blocked turn logs the assessment id only | unchanged
+RED-2 | approved | weekly review in 1a | review still renders on a blocked phrasing | review may fail on a blocked phrasing
+```
+
+Question: D8 — REV-3: Define what the founder sees when Bedrock Guardrails blocks a prompt or a response?
+Project/branch/task: Zafin-pfm-agent on develop, plan-ceo-review Section 2 of revision 3.
+ELI10: Guardrails is the filter in front of the model that stops prompt injection and leaks. When it fires it throws the request away, and today's plan does not say what Penny shows you then. Unhandled, the chat stream just breaks, or the model's own refusal text leaks through as if it were an answer. The fix: a fixed one-line notice from the server, an audit event that records that it happened (with the filter's id, never the content), and for the Sunday review, fall back to the plain templated wording so the review still appears.
+Stakes if we pick wrong: a broken stream or a fake answer the first time the filter fires on your own data, and a lost Sunday review.
+Recommendation: A) Apply because a filter that fires silently is worse than none, and the fallback keeps the habit trigger alive.
+Completeness: A=10/10, B=3/10
+Pros / cons:
+A) Apply the notice, audit event and review fallback (recommended)
+  ✅ You always see a true one-line notice, never a broken stream or the model's refusal prose
+  ✅ Every intervention is countable in audit_events, which is how you will tune the filter in 1b
+  ❌ One more server-owned component, one audit event type, two tests (human: ~half a day / CC: ~20 minutes)
+B) Keep as written
+  ✅ Nothing to add before 1a
+  ✅ For n=1 you can read the logs when a turn breaks
+  ❌ The first intervention breaks a stream or leaks refusal text, and a blocked Sunday phrasing loses the review
+Net: half a day for an honest notice and a review that survives the filter, or find out in production.
+Header: REV-3 review
+Options:
+A) Apply notice + audit + review fallback (recommended)
+Chat: stream ends with a server-owned `notice` "Penny can't help with that one."; audit guardrail_blocked with the assessment id only. Review: templated phrasing without the model; audit review_phrasing_blocked. Effort S (human ~half a day / CC ~20 min), risk low, reuse: component contract, audit sink. ✅ Honest notice. ✅ Countable. ❌ One component, one event, two tests.
+B) Keep as written
+Whatever the SDK raises reaches the stream; the review fails on a blocked phrasing. No effort, risk medium. ✅ Nothing to add. ✅ Logs exist. ❌ Broken stream or leaked refusal; lost review.
+
+## Section 3: Security & Threat Model
+
+Attack surface added by revision 3: the public ALB with a hostname (restricted to the founder's IP by security group until 1b), the Cognito hosted UI and one PKCE client, the JWKS egress, `POST /uploads` (multipart file), `GET /runs/{id}`, `GET /snapshot`, `POST /reviews/{id}/dismiss`, `GET /figures/{id}`, three model-invoked tools, one BackgroundTask per upload and per review, the S3 upload copy.
+
+| Threat | Likelihood | Impact | Mitigated by |
+|---|---|---|---|
+| Unverified JWT (today's middleware reads the payload without checking the signature) | High if shipped as is | High: anyone with the hostname is "the founder" | Milestone 0 replaces `poid_from_headers` with signature, iss, aud, exp and token_use checks (R3-1, REV-2); the `ext-user-profile-compressed` path is removed; the security group by IP is a second layer until 1b |
+| tenant_id taken from a client claim | Med | High: cross-tenant read in 1b | tenant_id resolved server-side from the verified `sub` through the tenants table; never from a request field (first doc R2; restated here for the new endpoints) |
+| Direct object reference on run, review, figure ids | Med | High | every repository method takes tenant_id (item 1); unknown or foreign ids return 404, never 403, so ids are not enumerable |
+| Prompt injection carried in a CSV descriptor ("ignore previous instructions…") | High (any file) | Med: wrong answer, no write path exists | tools are read-only (premise 4); the model may only phrase over tool output (item 7); Guardrails prompt-injection filter with the REV-3 notice; descriptors are rendered as data fields in components, not interpolated into the system prompt (first doc R6) |
+| Oversized or hostile upload (zip bomb XLSX, 10^6 rows, formula cells) | Med | Med: OOM kills the task | 20 MB limit before parsing (design D5 copy "File is over 20 MB."); XLSX read in read-only streaming mode; cell values are stored as text, never evaluated; a row cap derived from the byte limit is an implementation detail, not a new choice |
+| Timezone value injection | Low | Low | `tenant.timezone` validated against the IANA database at provisioning; runtime falls back to UTC (Section 2) |
+| Figure id hallucinated by the model to fabricate an "explain" | Med | Low | figure ids are minted server-side per tool call and scoped to tenant; explain 404s anything not persisted for that tenant |
+| Token in logs | Med | High | log the `kid` and the failure reason, never the token; request id for correlation (Section 2 rule) |
+| Secrets | — | — | none new: Guardrails id and Cognito pool/client ids are configuration, not secrets; KMS keys and DB credentials from Milestone 0 via Secrets Manager |
+| Dependencies | — | — | new: `langchain-aws` (Bedrock), `python-jose` or `PyJWT` with `cryptography` for JWKS (pick one, pinned), `openpyxl` already present; all mainstream, pinned in requirements |
+| Data classification | — | — | uploads and postings are financial PII: KMS envelope encryption on descriptor, counterparty and provenance columns (item 2); prompt log in the Object-Locked bucket inside the account; nothing leaves the account (premise 5) |
+| Audit | — | — | uploads, confirmations, syncs, chat turns, review generated/abandoned/dismissed, guardrail_blocked, figure_persist_failed: all in `audit_events` |
+
+Input validation for the new inputs: file (type by sniffing not extension, 20 MB, non-empty, decodable as UTF-8 or Latin-1 with the encoding recorded), mapping confirmation body (column indices within range, date format from the catalog only, sign convention from the enum), review id and figure id (UUID shape, tenant-scoped lookup), timezone (IANA). Unicode edge cases: descriptors normalized with NFKC before merchant matching (first doc's normalization); HTML in descriptors is escaped by the component renderer.
+
+**Findings:** OK across the table once REV-2 and REV-3 are applied; no High-likelihood threat remains unmitigated. No issues needing a new choice.
+
+**Decision gate:** nothing to resolve; the table restates approved contracts.
+
+## Section 4: Data Flow & Interaction Edge Cases
+
+Upload (new endpoint contract, item 3):
+```text
+  INPUT multipart file ─▶ VALIDATION (type sniff, ≤20 MB, non-empty) ─▶ TRANSFORM (decode, sample 5 rows, propose mapping) ─▶ PERSIST (run row: proposed / needs confirmation) ─▶ OUTPUT 202 {run_id}
+    nil/empty file ────────▶ 400 "The file is empty."                 (tested: unit)
+    wrong type ────────────▶ run failed, cause "not a CSV or spreadsheet we recognise" (D5 copy)
+    too long ──────────────▶ 413 "File is over 20 MB." before reading the body fully
+    exception/OOM ─────────▶ task dies → stale-run rule: failed "interrupted" on next poll (item 3)
+    duplicate (same file twice) ▶ second run reaches the re-upload preview (D21: Replace / Keep both)
+    stale (older export) ──▶ coverage window overlap → same preview
+    encoding ──────────────▶ Latin-1 fallback, encoding recorded on the run; undecodable → failed with cause
+```
+
+Weekly review trigger, async ordering (two flows share the `reviews` row): invariant "at most one generation per (tenant_id, week_start), and the rendered review always carries the snapshot_version it was computed from". Boundary: from the trigger's existence check to the row insert.
+```text
+  t   | trigger A (GET /snapshot)        | trigger B (POST /chat)             | reviews row
+  1   | SELECT row for week → none       |                                    | absent
+  2   |                                  | SELECT row for week → none         | absent
+  3   | INSERT (tenant, week) NULL       |                                    | in_flight (A)
+  4   |                                  | INSERT (tenant, week) → IntegrityError | in_flight (A)
+  5   | spawn BackgroundTask             | skip generation, return            | in_flight (A)
+  6   | task: pin snapshot_version=v7    |                                    | in_flight
+  7   |            upload commits v8 ──────────────────────────────────────▶ | in_flight (review computed on v7)
+  8   | UPDATE body, generated_at, snapshot_version=v7 |                      | generated (v7)
+```
+Order B-then-A is symmetric. The mechanism excluding a double generation is the unique key on (tenant_id, week_start) with insert-before-spawn; a SELECT-then-INSERT without the constraint would not be safe. The upload commit at t7 does not violate the invariant because the review records v7; the "data as of" line on the next `GET /snapshot` shows v8 while the review says its own version (D20 already prints the snapshot line). Regression proof: one test with two coroutines paused between SELECT and INSERT, released in both orders, asserting one row, one task and one `review_generated` audit event; one test for the abandon path (REV-1) with a frozen clock at +16 minutes asserting regeneration in place and `review_abandoned`.
+
+Upload commit versus snapshot cache (R2, R12) was proven in the first doc's eng review; nothing in revision 3 changes it.
+
+Interaction edge cases, minimal connect view and review component:
+
+| Interaction | Edge case | Handled? | How |
+|---|---|---|---|
+| Upload form submit | double-click | Y | button disabled on submit; the second request would only create a second run that lands in the re-upload preview |
+| Upload form submit | navigate away mid-run | Y | the run continues server-side; the run list shows it on return (GET /runs) |
+| Run list polling | backoff and tab in background | Y | D17 backoff; polling resumes on focus; stale-run rule bounds a dead run at 15 minutes |
+| Mapping confirm (plain form) | stale submit after another confirm | Y | the confirm endpoint checks run state; 409 rendered as "already confirmed, reload" |
+| Missing-column picker (RED-4) | user picks the same column for date and amount | Y | server rejects with a field error; the form re-renders with the message |
+| Re-upload preview | zero overlapping rows | Y | preview not shown; the run proceeds (D21 shows the preview only on overlap) |
+| Report as a plain list | thousands of rows | Y | sections collapsed with counts; unmatched first (D5 partial state) |
+| Weekly review | dismiss twice / dismiss after a newer review exists | Y | 409 / component already replaced |
+| Weekly review | first Sunday with fewer than three months | Y | empty copy (item 7) |
+| Weekly review | founder in a different timezone than provisioned | Partial | review day shifts; tenant.timezone is editable only by re-provisioning in 1a; acceptable for n=1, flagged for 1b's settings |
+| Explain a figure | figure from a previous snapshot version | Y | the Figure row stores its snapshot_version and row ids; rows are read from that version (supersession keeps them, R2) |
+
+**Findings:** one Partial (timezone edit), acceptable for n=1 and belonging to 1b's settings surface; no new choice. OK otherwise.
+
+**Decision gate:** nothing to resolve; the concurrency proof and tests above are implementation of the approved "never started twice" contract and REV-1.
+
+## Section 5: Code Quality Review
+
+- Organization: three tools live in `penny/application/insights/` beside the existing insight services and are registered in the tool registry like the ten; `suggest_cuts` is an application-layer composer, not a fourth insight; the weekly review is a service in `penny/application/reviews/` with a repository port in `penny_ledger`; the JWKS verifier is `penny/infrastructure/auth/cognito.py` behind a small `TokenVerifier` port so tests can inject keys. This matches the hexagonal layout.
+- DRY: recurrence detection already exists in `RecurringInsights` (first doc "What already exists"); `list_recurring_charges` must call it with the cadence windows and the 10 percent spread as parameters, not re-implement grouping. `rising_categories` reuses `TrendInsights`' monthly aggregation. The unusual-merchant filter reuses `detect_anomalies` output (item 6). Annualization (cadence → multiplier, delta × 12) is one pure function used by both sources and by the review's dollars-per-year line. Figure minting is one helper (`Figure.record(tool, snapshot_version, row_ids, value)`) used by every tool; three copies would drift.
+- Naming: `suggest_cuts` (verb, what it does) is right; avoid `CutEngine`. Sections are `ranked` and `one_off`, matching the copy. Audit event names are snake_case nouns with a past participle (`review_generated`, `review_abandoned`, `guardrail_blocked`) like the existing ones.
+- Error patterns: specific exceptions per Section 2; no `except Exception` in the tool pack; the composer drops a failed source and marks the list partial rather than failing the turn.
+- Edge cases in the thresholds: exactly three occurrences counts; cadence windows are inclusive; a category with fewer than three complete prior months is skipped, not compared against a mean of fewer months; the current partial month is excluded everywhere (item 6).
+- Over-engineering: none in scope; the abandon rule and the JWKS cache are the two smallest correct mechanisms.
+- Under-engineering: the review's question selector is "a fixed templated set driven by snapshot state"; specify the precedence order in code as a list, not nested ifs.
+- Cyclomatic complexity: `suggest_cuts` composing three sources with two sections and a fallback will branch more than five times if written as one function; split into `collect_sources()`, `rank_section_one()`, `rank_section_two()`, `compose()`. The review trigger (`existence → in-flight → abandoned → spawn`) is four branches; keep it in one method with the abandon check first.
+
+**Findings:** 2 (WARNING, both structural): DRY on recurrence and annualization; complexity of `suggest_cuts`. Both are implementation guidance under the approved design, no new choice.
+
+**Decision gate:** nothing to resolve.
+
+## Section 6: Test Review
+
+Coverage carried forward from the first doc: R10 regression rule (the ten insights and prompt assembly across the port change), R11 eval on the synced ledger, the balance-identity test on both engines (item 1), the cross-tenant test deferred to 1b (premise 7). New things this revision introduces and their tests:
+
+```text
+  NEW THING                        | TYPE        | HAPPY                                   | FAILURE                                          | EDGE
+  ---------------------------------|-------------|-----------------------------------------|--------------------------------------------------|--------------------------------------------
+  TokenVerifier (JWKS)             | unit        | valid token → identity                  | bad sig / exp / wrong aud / wrong token_use → 401 | unknown kid → one refresh then 401; empty cache + fetch fails → 503 (REV-2); refresh rate limit
+  Middleware 401 contract          | integration | signed-in request reaches routes        | missing header → 401 on every route              | health stays reachable? (no: health is behind auth too except the ALB target check path)
+  bedrock provider + enclave guard | unit        | VPC endpoint hostname accepted           | public hostname → RemoteModelForbiddenError      | Guardrails intervention → notice + audit (REV-3)
+  list_recurring_charges           | unit (fixtures) | three monthly charges → one entry, annualized ×12 | two occurrences → none                  | cadence 24 vs 25 days; 10.1 percent spread; weekly and fortnightly cadences
+  rising_categories                | unit        | last month > mean by 15 percent and $50 → flagged | 15 percent but $30 → not flagged        | fewer than three prior complete months → skipped; partial current month excluded
+  suggest_cuts                     | unit        | two sections ranked as specified        | one source raises → partial list                | zero entries → empty; ties by amount → stable order by merchant
+  Figure persistence + explain     | integration | tool result figure_id → GET /figures returns rows and version | unknown / foreign id → 404      | figure from an older snapshot version resolves rows
+  Weekly review trigger            | integration | Sunday trigger → row, task, audit        | no committed snapshot → nothing                  | concurrency (both orders, Section 4); abandon at +16 min (REV-1); unchanged snapshot → regenerated with rotated question; timezone boundary (Sat 23:59 vs Sun 00:00 in tenant tz, DST week)
+  weekly-review component          | unit        | three cuts + question rendered           | fewer than three → one-off fallback, then empty copy | dismiss → gone; newer review → replaced
+  POST /reviews/{id}/dismiss       | integration | 204, dismissed_at set, audit             | foreign id → 404; twice → 409                    | in-flight id → 409
+  stale-run rule                   | integration | run without heartbeat +15 min → failed "interrupted" on poll | heartbeat at +14 min → still running | exactly 15 minutes boundary
+  Minimal connect view (web/)      | E2E (browser) | sign in, upload fixture, confirm mapping, see report | wrong file → cause shown             | picker with same column twice → field error
+  Fargate eval baseline task       | system      | task exits 0 and writes verdicts to S3   | Bedrock unreachable → task exits non-zero, no baseline recorded | —
+```
+
+Assertion check on the three requirement-bearing behaviors: (1) "audit_events shows a chat_turn in each of four consecutive calendar weeks" → assertion: the metric query over fixture events returns exactly four consecutive week starts for a passing tenant and rejects three-plus-gap; (2) "every suggested cut opens to its rows" → assertion: for every entry in `suggest_cuts` output, `GET /figures/{figure_id}` returns a non-empty row list whose amounts sum to the figure's value (exact, Decimal); (3) "never started twice" → exactly one row and one task under both schedules (Section 4). None is weakened to a lower bound.
+
+2am Friday test: upload a six-month fixture pair (bank + card with transfers), run the full pipeline, assert the balance identity to the cent, run `suggest_cuts`, open every figure. Hostile QA: a CSV whose merchant field is a prompt-injection string and whose amounts are "1,234.50" with a thousands separator in a Latin-1 file. Chaos: kill the task 2 seconds into an upload and 2 seconds into a review generation; assert "interrupted" and `review_abandoned` on the next poll.
+
+Pyramid: unit-heavy (tools, verifier, thresholds), a dozen integration tests (endpoints, trigger, stale rules), one browser E2E, one system test for the eval task. Flakiness: the trigger and stale rules depend on time → inject a clock; the E2E depends on Cognito → run against the dev account only, not in CI, with a fixture user. Load: not needed for n=1; the reconciliation of a 20 MB file is the one path worth timing once (Section 7).
+
+LLM/prompt changes: the three tools and the review prompt change the tool surface, so the R11 eval suite runs on Bedrock with new cases: "what should I cut", "why is dining up", "what's this $412", and a review-phrasing case that asserts no facts beyond tool output; baseline is the D13 Milestone 0 baseline on the same model.
+
+**Findings:** no new test-method choice; every row above is directly determined by an approved contract (items 3, 6, 7, REV-1 to REV-3, R10, R11). 0 gaps after the rows are written.
+
+**Decision gate:** nothing to resolve.
+
+## Section 7: Performance Review
+
+- N+1: `suggest_cuts` reads the snapshot once into memory and passes the same frame to the three sources; `explain_number` reads rows by primary key in one query (`WHERE tenant_id = ? AND id = ANY(?)`). The review reads one snapshot. No loops over queries.
+- Memory: six months for one person is 2,000 to 5,000 postings; a 20 MB CSV is roughly 200,000 rows, the upper bound for one run, parsed by streaming so peak memory is the row batch, not the file. Figures store row id lists, bounded by the rows behind one number (worst case a category's month, hundreds).
+- Indexes: `postings(tenant_id, created_version, retired_version)` and `(tenant_id, account_id, posted_at)` from the first doc; new: `reviews(tenant_id, week_start)` unique, `figures(tenant_id, id)` primary, `audit_events(tenant_id, kind, created_at)` for the weekly metric and the abandon/blocked counts, `runs(tenant_id, state, last_heartbeat_at)` for the stale-run sweep on poll.
+- Caching: JWKS (REV-2); the snapshot LRU (R12) already covers repeated tool calls in one turn; the review is itself a cache of `suggest_cuts` for the week.
+- Background jobs: an upload run is bounded by the 20 MB file and finishes in seconds to a minute on one vCPU; a review generation is one `suggest_cuts` plus one Bedrock call (5 to 20 seconds). Both retry only through the stale/abandon rules, never automatically in a loop.
+- Slow paths, p99 estimates: reconciliation of a 200k-row file (~60 s, background); first chat turn after a deploy (JWKS fetch + snapshot load + Bedrock, ~8 s); a chat turn that invokes `suggest_cuts` on a cold LRU (~3 s before the model streams).
+- Connection pool: one Fargate task, one async engine pool of 5 to 10 for RDS; BackgroundTasks share it, so an upload plus a review plus a chat turn use three connections. No Redis. One outbound HTTPS pool for JWKS, one for Bedrock through the endpoint.
+
+**Findings:** OK; the four new indexes are implementation of the approved schema and need no choice.
+
+**Decision gate:** nothing to resolve.
+
+## Section 8: Observability & Debuggability Review
+
+- Logging: structured JSON already (`penny/infrastructure/observability`); new lines at entry and exit of the upload run (run_id, stage, row counts), the review trigger (decision taken: none / in_flight / abandoned / spawned), the verifier (kid, reason), each tool call (tool, snapshot_version, figure ids, duration), Guardrails interventions (assessment id). Never a descriptor, an amount with a merchant, or a token.
+- Metrics (CloudWatch EMF from the same logger): `runs_terminal{state}`, `run_duration_seconds`, `reviews_generated`, `reviews_abandoned`, `reviews_dismissed`, `guardrail_blocked`, `auth_401`, `auth_503_jwks`, `bedrock_throttled`, `chat_turns`. Working: chat_turns weekly and reviews_generated weekly both non-zero. Broken: reviews_abandoned > 0, auth_503_jwks > 0, runs_terminal{failed} rising.
+- Tracing: OpenTelemetry is already a dependency; export to AWS X-Ray through the ADOT sidecar or the OTLP endpoint in the task; request id propagates into the BackgroundTask so a run's log lines join the request that created it.
+- Alerting: no alarms are specified anywhere in Milestone 0 or 1a ← finding REV-4. For one user the useful set is small: ECS running task count < 1, ALB 5xx > 0 in 5 minutes, `reviews_abandoned` ≥ 1, `auth_503_jwks` ≥ 1, RDS free storage and CPU, Bedrock throttles ≥ 5 in 5 minutes; delivered by SNS to the founder's email.
+- Dashboards, day 1: one CloudWatch dashboard with runs by state, review counts, chat turns per week, Bedrock latency and throttles, 401/503 counts.
+- Debuggability three weeks later: `audit_events` plus the run row (cause, stage, counts) plus the request-id-joined logs reconstruct any upload; a wrong figure is reconstructed from its Figure row (snapshot_version, row ids) with `explain_number`; a missing review is explained by `review_abandoned` or the absence of a trigger (no request that Sunday).
+- Admin tooling: a `penny-admin` CLI (or Alembic-style script run as a one-off Fargate task) for: provision tenant with timezone, rotate the tenant KMS key alias, mark a run failed, regenerate a review. The first two are Milestone 0 work already implied by "one tenant and one user"; the last two are 1a.
+- Runbooks: run "interrupted" → founder re-uploads (item 3); `review_abandoned` → next trigger regenerates; if it repeats, read the task log for the cause; `auth_503_jwks` → check the egress rule and Cognito status; Guardrails blocked on the founder's own question → read the assessment id in the Bedrock console and adjust the policy in 1b.
+
+**Findings:** REV-4 (WARNING): no alarm set is specified, so a dead task or a JWKS lock-out is discovered by the founder failing to sign in. Everything else restates approved mechanisms.
+
+**Decision gate:** REV-4 needs a choice (0D, below).
+
+## Answered: REV-4 (D9 = A, apply; recorded in the ledger and Milestone 0)
+
+### currentDecision archive (REV-4)
+Commitment comparison:
+
+```text
+Commitment | Source/approval or pending | Current | A (Add to Milestone 0) | B (Defer to TODOS.md) | C (Do nothing)
+Alarms | none specified | none | six CloudWatch alarms to SNS email: ECS running tasks < 1, ALB 5xx ≥ 1 in 5 min, reviews_abandoned ≥ 1, auth_503_jwks ≥ 1, RDS free storage < 20 percent or CPU > 80 percent for 15 min, Bedrock throttles ≥ 5 in 5 min | same set, written to TODOS.md as P2 for 1b | none
+Milestone 0 estimate | ~1 week human / ~1 day CC | unchanged | + ~half a day human / ~15 min CC | unchanged | unchanged
+Metrics (EMF) | Section 8 (implementation of logging) | in 1a | unchanged | unchanged | unchanged
+```
+
+Question: D9 — REV-4: Add a minimal alarm set to Milestone 0?
+Project/branch/task: Zafin-pfm-agent on develop, plan-ceo-review Section 8 of revision 3.
+ELI10: Right now nothing in the plan tells you when Penny is down or broken; you find out when you try to sign in on Sunday. Six CloudWatch alarms that email you cover the failures that matter for one user: the service is not running, requests are failing, a Sunday review was abandoned, sign-in keys are missing, the database is filling up, and the model is throttling. About half a day in Milestone 0.
+Stakes if we pick wrong: a silent outage eats one of the four weeks the metric needs, or half a day goes to alarms that never fire for n=1.
+Recommendation: A) Add to Milestone 0 because the metric is four consecutive weeks and a silent dead week is the cheapest way to lose it.
+Note: options differ in kind, not coverage — no completeness score.
+Pros / cons:
+A) Add the six alarms to Milestone 0 (recommended)
+  ✅ A dead task, a lock-out or an abandoned review reaches your inbox within minutes, not on Sunday
+  ✅ The alarms are infrastructure-as-code next to the ECS and RDS definitions, so 1b inherits them
+  ❌ Half a day more in Milestone 0 and an SNS topic to confirm by email
+B) Defer to TODOS.md for 1b
+  ✅ Milestone 0 stays as written
+  ✅ The set is recorded and sized for whoever picks it up
+  ❌ Your month of weekly use runs without any outage signal
+C) Do nothing
+  ✅ No work at all
+  ✅ For n=1 you are the monitoring
+  ❌ Nothing tells you Penny is down until you need it
+Net: half a day for an inbox signal during the one month that matters, or run the month blind.
+Header: REV-4 review
+Options:
+A) Add six alarms to Milestone 0 (recommended)
+ECS tasks < 1, ALB 5xx, reviews_abandoned, auth_503_jwks, RDS storage/CPU, Bedrock throttles → SNS email. Effort S (human ~half a day / CC ~15 min), risk low, reuse: EMF metrics from Section 8. ✅ Minutes, not Sunday. ✅ Inherited by 1b. ❌ Half a day and an SNS confirmation.
+B) Defer to TODOS.md (1b, P2)
+Same set recorded, no Milestone 0 change. Effort none now, risk medium for the month. ✅ Milestone 0 unchanged. ✅ Recorded and sized. ❌ Month runs without an outage signal.
+C) Do nothing
+No alarms, no TODO. Effort none, risk medium. ✅ No work. ✅ You are the monitoring. ❌ Silent outages.
+
+## Section 9: Deployment & Rollout Review
+
+- Migrations: 1a adds `figures`, `reviews`, `tenant.timezone` (nullable then backfilled for the one tenant), the four indexes from Section 7 and the audit event kinds (a text column, no enum migration). All additive, no table rewrites, no locks beyond the metadata lock; zero-downtime on RDS.
+- Rollout order: (1) `alembic upgrade head` as a one-off Fargate task with the same task role; (2) deploy the new task definition; (3) smoke. Never the reverse: the new image reads `reviews` on the first Sunday trigger.
+- Feature flags: one setting `weekly_review_enabled` (default true) so the trigger can be switched off without a deploy if generation misbehaves on real data; the tools need no flag (read-only, model-invoked).
+- Rollback: redeploy the previous task definition revision (ECS keeps them); leave the additive schema in place; if `weekly_review_enabled` was the cause, flip it first. Time: under five minutes. Data written by the new version (figures, reviews) is ignored by the old one.
+- Deploy-time window: ECS starts the new task, drains the old one with a 30-second stop timeout; an upload run in flight in the old task is killed and surfaces as "interrupted" on the next poll (item 3); a review in flight surfaces as abandoned and regenerates (REV-1). Raise the stop timeout to 120 seconds so a normal-sized run finishes; note it in the task definition.
+- Environment parity: 1a has one environment, the dev account; production parity is 1b's concern. Fixtures run in CI on both engines (item 1).
+- Post-deploy verification, first five minutes: health returns provider `bedrock`, the VPC endpoint hostname and `jwks: ok`; unauthenticated GET returns 401; signed-in greeting streams; a fixture upload is not possible in the dev account (fixtures live in CI), so the smoke uses the greeting and `GET /snapshot`. First hour: one chat turn on the founder's data with a tool call; the CloudWatch dashboard shows the turn; no alarm fired.
+- Smoke tests, automated after deploy: the health check with the three fields above and the 401 check, run by the deploy pipeline against the dev hostname from the founder's IP.
+
+**Findings:** 2 (WARNING): stop timeout should be 120 s not the default 30 s; `weekly_review_enabled` flag. Both are implementation detail of the approved deployment, recorded as tasks, no new choice.
+
+**Decision gate:** nothing to resolve.
+
+## Section 10: Long-Term Trajectory Review
+
+- Debt introduced, deliberate: in-process BackgroundTask instead of a job table (1b, already planned); security group by IP instead of WAF and CloudFront (1b); single-tenant tests (1b); timezone editable only by re-provisioning (1b settings); the minimal connect view (1b, RED-1 in TODOS.md). Operational debt: one Fargate task and one RDS instance without Multi-AZ (1b). Testing debt: the browser E2E runs only against the dev account. Documentation debt: two design docs where a newcomer needs to know that revision 3 supersedes six named items of the first; a README pointer fixes that (task).
+- Path dependency: the figure and review tables shape the iOS lane's data (a review record becomes a notification) and the 1b consent and perimeter work builds on the same tenant scoping; nothing here makes those harder. Bedrock is behind the provider registry with `local` as the exit, so the model posture stays reversible.
+- Knowledge concentration: the ledger, reconciliation and tool pack are specified in two docs with ledgers R1 to R13, D4 to D23 and RED/REV rows; sufficient for a new engineer with the README pointer.
+- Reversibility: 4/5. Additive schema, flagged review, registry-backed model; the one-way parts are the AWS landing zone and the domain, which are Milestone 0 and reversible only by re-provisioning.
+- Ecosystem fit: hexagonal layers, FastAPI, LangGraph tools, Alembic, structured logging with OpenTelemetry, all already in the repo's conventions.
+- One-year question: yes, provided the README says which doc governs and the audit event catalogue is written in one place (`penny_ledger/audit/kinds.py` with docstrings).
+
+**Findings:** 1 (WARNING): README pointer and audit kinds catalogue as documentation tasks. No new choice.
+
+**Decision gate:** nothing to resolve.
+
+## Section 11: Design & UX Review
+
+UI scope exists: the minimal connect view (RED-1), the plain confirm forms (D15, D16 with the RED-4 picker, D21), the `weekly-review` component, the `notice` component (REV-3) and the explain view (RED-3), all on `web/` for one user.
+
+Information architecture, minimal view: first the "data as of" line (D20), second the run list (newest first, state as text), third the upload form, fourth the report link per run. The chat thread keeps the pinned weekly review at the top until dismissed.
+
+| Feature | Loading | Empty | Error | Success | Partial |
+|---|---|---|---|---|---|
+| Minimal connect view | "Loading your sources…" text | "No sources yet. Upload a CSV or spreadsheet." + form | "Couldn't load runs. Reload." | as-of line + run list | run list with one run in needs-confirmation |
+| Run row (text) | "Reading…", "Checking totals…" (state names) | n/a | cause text from the run (D5 copy) | "Verified · N lines through <date>" | "N imported, M skipped" |
+| Confirm forms (plain) | "Reading 5 sample rows…" | n/a | field-level error text | returns to the run row | one ambiguous field flagged (D16) |
+| Missing-column picker (RED-4) | same | n/a | "Pick two different columns." | same | n/a |
+| Weekly review component | not shown until generated | coverage line + "No cuts to suggest yet…" + question | not shown; abandon path regenerates | three cuts + question | one-off fallback entries labelled |
+| notice (REV-3) | n/a | n/a | the notice is the error state | n/a | n/a |
+| Explain view | "Opening the rows…" | "No rows behind this figure." (should not occur; figures always have rows) | "That figure isn't available." | rows, snapshot version, tool, computed_at | n/a |
+
+Journey, emotional arc for user one: sign in (routine) → upload two files (mild anxiety: will it read them?) → confirm a mapping in a plain form (relief when the sentence names the right account, D15) → "Totals match your statement" (trust) → ask "what should I cut" (curiosity) → open a figure to its rows (verification, the trust moment) → Sunday review pinned (habit) → dismiss (closure). The plain view does not break the arc; the trust moments are copy and data, not layout.
+
+AI slop risk: low by construction; the minimal view is deliberately unstyled and the polished screen's decisions (D4 to D21) are already made and deferred, not replaced by generic patterns. DESIGN.md does not exist yet (TODOS.md: /design-consultation); the minimal view uses browser defaults and the existing `web/` styles. Responsive: the minimal view is a single column and works at phone width; iOS is the customer client later. Accessibility: native form controls and text states give keyboard and screen-reader coverage for free; the run-state text must not rely on colour alone (it does not, it is text); touch targets are default buttons.
+
+```text
+  [sign-in] → [connect view: as-of, runs, upload] → (upload) → [run: reading] → [needs confirmation: form] → [checking totals] → [verified | failed: cause]
+                                                                                                    └─ (overlap) → [re-upload preview: Replace / Keep both]
+  [chat thread] ← (Sunday) [weekly-review pinned] → (dismiss) → gone      [figure] → (explain) → [rows, version, tool]
+                ← (Guardrails) [notice]
+```
+
+Consider running /plan-design-review for a deep design review of this plan before implementation (the founder already asked for it after this review; it should review the minimal view's copy and the weekly-review and notice components, since D4 to D21 stand). After implementation, run `/design-review` on the dev hostname.
+
+**Findings:** 1 (OK, recorded): the explain view's empty state should be unreachable; assert it in the figure helper rather than designing for it. No new choice.
+
+**Decision gate:** nothing to resolve.
+
+## Outside voice
+
+Preflight: `CODEX_MODE: broken_install` (spawn ENOENT on the Codex vendor binary; reinstall with `npm install -g @openai/codex`). Native fallback requires the TaskOutput tool in this session's tool definitions; it is absent, so per the bounded-wait rule the unavailable path applies. Outside voice unavailable; no clean-review credit; recorded as `codex-plan-review` status unavailable, source none, outside_status unavailable.
+
+## Resolve remaining TODO choices
+
+None remain: RED-1's deferral is already in TODOS.md (polished connect screen, 1b); REV-4 was resolved as Milestone 0 scope, not a TODO. No further proposals in SCOPE REDUCTION.
+
+## Approval readiness
+
+Checked rows and their answers: MODE (D1 A), RED-1 (D2 A, deferred; TODOS.md), RED-2 (D3 B), RED-3 (D4 B, re-asked once), RED-4 (D5 B), REV-1 (D6 A), REV-2 (D7 A), REV-3 (D8 A), REV-4 (D9 A). Each approved remedy is applied only within its answer's scope (item 7, Milestone 0 text, item 8, estimate). Deferred: RED-1 delivery to 1b (settled). Declined: none. Unanswered: none. Approval readiness: PASS.
+
+## NOT in scope
+
+Deferred (in TODOS.md): the polished connect screen, D4 to D21, to Milestone 1b (RED-1, D2 A; user one is the founder and the wedge metric needs the ledger and tools, not the screen). Already deferred by revision 3 itself: second tenant, cross-tenant tests, WAF and CloudFront, consent table, needs_reauth and Reconnect, account-link proposal (1b); budget targets and savings goals (follow-on, Open Questions); iOS notification for the review (iOS lane).
+Rejected: the 48-hour prototype (office hours, founder: breaks fixtures-only and no-public-API); digest-only without chat (office hours); the payroll compliance checker (parked, no named buyer). Nothing rejected in this review.
+
+## What already exists
+
+Chat runtime, streaming, components, ten tools, `InsightService`, `RecurringInsights`, `TrendInsights`, `detect_anomalies`, `ToolCallValidator`, `ModelCallLimit`, structured logging and OpenTelemetry, the `local` provider and enclave guard (all reused as is); `penny/presentation/http/middleware.py` (reused as the seam, its unverified claim parsing replaced in Milestone 0); `scripts/enrich_transactions.py` (extracted per R9); `web/` (the 1a client); the eval suite with checkpoints and `verify_numbers.py` (the D13 baseline and the R11 runs); the design decisions D4 to D23 (stand, delivery moved).
+
+## Dream state delta
+
+After 1a: one real user on the real core in the founder's account, verified ledger, three cut tools, a weekly review and checkable figures. Still missing against the 12-month ideal: the second user and the perimeter (1b), two-source matching for companies, the iOS client, direct bank channels, paid tenants. The axis moved is the one that matters first: a real user with real money on the production posture.
+
+## Error & Rescue Registry
+
+Section 2's two tables are the registry for this revision (18 codepath rows, 16 exception classes; 0 CRITICAL GAPS after REV-1 to REV-3). The first doc's eng review registry covers ingest, reconciliation, commit and snapshot.
+
+## Failure Modes Registry
+
+```text
+  CODEPATH                    | FAILURE MODE                         | RESCUED? | TEST? | USER SEES?                    | LOGGED?
+  ----------------------------|--------------------------------------|----------|-------|-------------------------------|--------
+  middleware.verify_bearer    | missing / invalid token              | Y        | Y     | 401 → sign-in                 | Y
+  middleware.verify_bearer    | unknown kid (rotation)               | Y REV-2  | Y     | one refresh, then 401         | Y
+  middleware.verify_bearer    | JWKS unavailable, empty cache        | Y REV-2  | Y     | 503 Retry-After               | Y + alarm REV-4
+  bedrock.invoke              | throttle / timeout                   | Y        | Y     | "Penny is busy" notice        | Y + alarm
+  bedrock.invoke              | Guardrails intervention              | Y REV-3  | Y     | notice; review templated      | Y (audit)
+  uploads.run                 | task killed mid-run                  | Y        | Y     | "interrupted", re-upload      | Y (audit)
+  uploads.run                 | file rejected                        | Y        | Y     | cause (D5 copy)               | Y (audit)
+  suggest_cuts                | one source raises                    | Y        | Y     | partial list line             | Y
+  figures.persist             | insert fails                         | Y        | Y     | figure without explain        | Y (audit)
+  explain_number              | unknown / foreign id                 | Y        | Y     | "not available"               | Y
+  reviews.trigger             | concurrent triggers                  | Y        | Y     | one review                    | Y
+  reviews.trigger             | generation crash / killed            | Y REV-1  | Y     | review appears next trigger   | Y (audit) + alarm
+  reviews.dismiss             | foreign / repeated / in-flight       | Y        | Y     | nothing / 409                 | Y
+  tenant.timezone             | invalid zone                         | Y        | Y     | review at UTC Sunday          | Y
+  ecs task                    | task dead                            | n/a      | n/a   | site down                     | alarm REV-4
+```
+15 rows, 0 CRITICAL GAPS.
+
+## Diagrams
+
+1. System architecture: Section 1. 2. Data flow with shadow paths: Section 4 (upload) and Section 1 (review). 3. State machine: Section 1 (reviews row); the run state machine is in the first doc (R5/D7). 4. Error flow: Section 2 tables. 5. Deployment sequence: Section 9 (migrate → deploy → smoke). 6. Rollback: Section 9 (flag first, then previous task definition, schema stays).
+
+```text
+  ROLLBACK:  alarm or failed smoke ─▶ cause is the review? ─yes─▶ set weekly_review_enabled=false ─▶ fixed? ─yes─▶ done
+                                            │ no                                                      │ no
+                                            └──▶ ecs update-service --task-definition <previous> ─▶ smoke ─▶ done (schema left additive)
+```
+
+## Stale Diagram Audit
+
+Diagrams in files this plan touches: the first doc's architecture diagram (line ~74 onward; still accurate: three packages, Bedrock via endpoint), its run state machine (R5; unchanged), its design-review flow (D4 to D21; still accurate as the 1b target). Revision 3's 0C dream-state diagram: still accurate. None stale.
+
+## Implementation Tasks
+Synthesized from this review's findings. Each task derives from a specific finding above. Run with Claude Code or Codex; checkbox as you ship.
+
+- [ ] **T1 (P1, human: ~1 day / CC: ~30 min)** — Milestone 0 auth — Replace unverified claim parsing with Cognito JWT verification and the JWKS contract
+  - Surfaced by: Section 2 / Section 3 — REV-2 (D7 A): cache at startup, one refresh per unknown kid (rate-limited), 503 on empty cache, health `jwks` field, JWKS URL as the one public egress
+  - Files: penny/presentation/http/middleware.py, penny/infrastructure/auth/cognito.py (new), penny/presentation/http/routes.py (health), penny/infrastructure/config/settings.py, tests/presentation/test_auth_middleware.py (new), infra (egress rule)
+  - Verify: four middleware tests (valid, invalid, unknown kid → refresh once, JWKS down → 503); unauthenticated GET on the dev hostname returns 401; health shows `jwks: ok`
+- [ ] **T2 (P1, human: ~2 h / CC: ~10 min)** — weekly review — Add the abandon rule to the review trigger
+  - Surfaced by: Section 1 — REV-1 (D6 A)
+  - Files: penny/application/reviews/service.py (new), penny_ledger (reviews repository), penny_ledger/audit/kinds.py (review_abandoned)
+  - Verify: frozen-clock test at +16 minutes asserts regeneration in place and one `review_abandoned` event; concurrency test (both orders) asserts one row and one task
+- [ ] **T3 (P1, human: ~half a day / CC: ~20 min)** — chat + review — Guardrails intervention notice, audit events and review phrasing fallback
+  - Surfaced by: Section 2 — REV-3 (D8 A)
+  - Files: penny/infrastructure/llm/model_factory.py (bedrock branch), penny/application/chat (stream end with `notice`), penny/application/reviews/service.py, penny_ledger/audit/kinds.py, tests
+  - Verify: a stubbed intervention yields the `notice` component and a `guardrail_blocked` audit row with no content; a blocked phrasing still renders the templated review with `review_phrasing_blocked`
+- [ ] **T4 (P1, human: ~half a day / CC: ~15 min)** — infra — Six CloudWatch alarms to SNS email in Milestone 0
+  - Surfaced by: Section 8 — REV-4 (D9 A)
+  - Files: infra (to be determined: CDK or Terraform under infra/), penny/infrastructure/observability (EMF metric names)
+  - Verify: `aws cloudwatch describe-alarms` lists six alarms in OK state; forcing `reviews_abandoned` in dev sends the email
+- [ ] **T5 (P2, human: ~1 day / CC: ~30 min)** — tool pack — Build `list_recurring_charges`, `rising_categories` and `suggest_cuts` over the existing insights with one annualization function and one figure helper
+  - Surfaced by: Section 5 — DRY and complexity findings; Section 6 rows
+  - Files: penny/application/insights/recurring_charges.py, rising_categories.py, suggest_cuts.py (new), penny/application/insights/figures.py (new), tool registry
+  - Verify: threshold unit tests (three occurrences, cadence windows, 15 percent and $50, partial month excluded); every `suggest_cuts` entry's figure resolves to rows whose Decimal sum equals the figure
+- [ ] **T6 (P2, human: ~2 h / CC: ~10 min)** — deploy — Task stop timeout 120 s, `weekly_review_enabled` setting, migrate-then-deploy pipeline order, post-deploy smoke
+  - Surfaced by: Section 9
+  - Files: infra task definition, penny/infrastructure/config/settings.py, deploy pipeline (to be determined)
+  - Verify: pipeline runs `alembic upgrade head` as a one-off task before `ecs update-service`; smoke asserts health fields and 401
+- [ ] **T7 (P2, human: ~2 h / CC: ~10 min)** — schema — Four indexes and the audit kinds catalogue
+  - Surfaced by: Section 7, Section 10
+  - Files: penny_ledger/migrations (new revision), penny_ledger/audit/kinds.py
+  - Verify: `EXPLAIN` on the weekly-metric query and the stale-run sweep uses the indexes; kinds module lists every event name used in code (test greps)
+- [ ] **T8 (P3, human: ~30 min / CC: ~5 min)** — docs — README pointer: revision 3 governs the six superseded items; first doc governs the rest
+  - Surfaced by: Section 10
+  - Files: README.md, docs/designs/README.md (new)
+  - Verify: a new reader can name which doc governs milestones from the README alone
+- [ ] **T9 (P2, human: ~3 h / CC: ~15 min)** — eval — Add the cut, rising, explain and review-phrasing cases to the R11 eval suite and run against the D13 Bedrock baseline
+  - Surfaced by: Section 6 — LLM/prompt changes
+  - Files: eval/cases (to be determined), eval/run_eval.py
+  - Verify: the four cases pass the judge; the review-phrasing case asserts no facts beyond tool output
+
+_No new tasks from Section 3, Section 4 and Section 11 beyond those above._
+
+## Completion Summary (CEO review, 2026-09-30)
+
+```text
+  +====================================================================+
+  |            MEGA PLAN REVIEW — COMPLETION SUMMARY                   |
+  +====================================================================+
+  | Mode selected        | SCOPE REDUCTION                             |
+  | System Audit         | chat runtime, 10 tools, insights, telemetry |
+  |                      | and local provider reused; middleware       |
+  |                      | unverified today (Milestone 0 replaces it)  |
+  | Step 0               | reduction; RED-1 deferred, RED-2..4 kept    |
+  | Section 1  (Arch)    | 3 issues found (REV-1..3)                   |
+  | Section 2  (Errors)  | 18 error paths mapped, 0 GAPS after REV-1..3|
+  | Section 3  (Security)| 0 issues found, 0 High severity open        |
+  | Section 4  (Data/UX) | 11 edge cases mapped, 0 unhandled (1 partial)|
+  | Section 5  (Quality) | 2 issues found                              |
+  | Section 6  (Tests)   | Diagram produced, 0 gaps                    |
+  | Section 7  (Perf)    | 0 issues found                              |
+  | Section 8  (Observ)  | 1 gap found (REV-4, resolved)               |
+  | Section 9  (Deploy)  | 2 risks flagged                             |
+  | Section 10 (Future)  | Reversibility: 4/5, debt items: 6           |
+  | Section 11 (Design)  | 1 issue (explain empty state unreachable)   |
+  +--------------------------------------------------------------------+
+  | NOT in scope         | written (1 deferred + 3 prior; 3 rejected)  |
+  | What already exists  | written                                     |
+  | Dream state delta    | written                                     |
+  | Error/rescue registry| 18 rows, 0 CRITICAL GAPS                    |
+  | Failure modes        | 15 total, 0 CRITICAL GAPS                   |
+  | TODOS.md updates     | 1 item (RED-1 deferral)                     |
+  | Scope proposals      | 4 cuts offered, 1 accepted (REDUCTION)      |
+  | CEO plan             | skipped by mode                             |
+  | Outside voice        | codex broken_install; native fallback       |
+  |                      | unavailable (no TaskOutput); unavailable    |
+  | Lake Score           | 3/3 (D6, D7, D8 chose the 10/10 option)     |
+  | Diagrams produced    | 6 (architecture, data flow, state machine,  |
+  |                      | error flow, deployment, rollback)           |
+  | Stale diagrams found | 0                                           |
+  | Unresolved decisions | 0                                           |
+  +====================================================================+
+```
+
+### Unresolved Decisions
+None. Every question (D1 to D9) was answered; D4 was re-asked once in plainer words at the founder's request.
+
+## GSTACK REVIEW REPORT
+
+| Review | Trigger | Why | Runs | Status | Findings |
+|--------|---------|-----|------|--------|----------|
+| CEO Review | `/plan-ceo-review` | Scope & strategy | 1 (this run, develop) | ISSUES OPEN → see verdict; logged status: clean (0 unresolved, 0 critical gaps) | mode: SCOPE_REDUCTION, 0 critical gaps; 4 cuts offered, 1 accepted (RED-1), 4 review remedies approved (REV-1..4) |
+| Outside Review | codex via `/plan-ceo-review` (this run); codex via `/plan-eng-review` and design outside voices (main, 2026-09-30) | Independent 2nd opinion | 1 on develop; 2 on main | unavailable (broken install; native fallback unavailable, no TaskOutput) | no completed external review; finding count not applicable |
+| Eng Review | `/plan-eng-review` | Architecture & tests (required) | 0 on develop (1 on main, first doc, commit 9a737c5) | not run on revision 3 | main run: 15 issues, 0 critical gaps, 0 unresolved (first doc) |
+| Design Review | `/plan-design-review` | UI/UX gaps | 0 on develop (1 on main, first doc, commit 9a737c5) | not run on revision 3 | main run: score 2/10 → 9/10, 18 decisions (first doc) |
+| DX Review | `/plan-devex-review` | Developer experience gaps | 0 | — | — |
+
+- **OUTSIDE COVERAGE:** codex, plan-review phase, unavailable (CLI installed but its binary cannot run: spawn ENOENT; reinstall with `npm install -g @openai/codex`); native fallback not dispatched because TaskOutput is not in this session's tools; no findings, no clean credit. Prior on main: codex-plan-review unavailable (eng review), design-outside-voices unavailable.
+- **VERDICT:** CEO CLEARED for revision 3 (0 unresolved, 0 critical gaps); eng review required (not yet run on revision 3; the main run reviewed the first doc at 9a737c5, 1 commit before this branch's revision).
+
+NO UNRESOLVED DECISIONS

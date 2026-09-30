@@ -40,4 +40,16 @@
 **Priority:** P2
 **Depends on:** Milestone 1 shipped; accounting provider chosen.
 
+### Polished connect screen (design D4-D21) delivered in Milestone 1b
+
+**What:** Ship the connect screen as designed (anchor block, account rows, run sub-rows, mapping-confirm shapes, re-upload preview, Attention copy, report with delta line) in Milestone 1b; Milestone 1a uses a minimal connect view on the same endpoints.
+
+**Why:** User one is the founder; the wedge metric needs the ledger and tools, not the polished screen. Deferred by the CEO review (RED-1, D2, 2026-09-30); no design decision changes.
+
+**Context:** docs/designs/penny-revision-3-user-order.md (CEO review ledger RED-1); docs/designs/multi-source-finance-chatbot.md Design review section holds every decision.
+
+**Effort:** M
+**Priority:** P2
+**Depends on:** Milestone 1a shipped.
+
 ## Completed
